@@ -27,7 +27,7 @@
 | gym-admin-web | 5173 | -            | Vue 3 管理后台（`npm run dev`）                 |
 | gym-user-web  | 5174 | -            | Vue 3 会员前台（`npm run dev`）                 |
 
-> gym-user 只负责用户本身，不再聚合 coach / course / member；教练、课程、会员卡分别由独立服务提供。
+
 
 ***
 
@@ -78,7 +78,7 @@ spring:
             group: DEFAULT_GROUP
 ```
 
-**端口、数据源、Redis、RabbitMQ、Seata、JWT 全部来自 Nacos**，本地不再有第二套配置。
+
 
 ### 4.2 Nacos 中的配置
 
