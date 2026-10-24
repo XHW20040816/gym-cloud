@@ -2,7 +2,7 @@
 
 ## 1. 项目简介
 
-本项目是一个教学 / 演示级的健身房全栈微服务系统：后端 Spring Cloud Alibaba（12 个微服务，16 个 Maven 子模块），前端 Vue 3 + Vite + Element Plus，中间件由 Docker Compose 一键编排。覆盖登录鉴权、用户 / 教练 / 商品 / 餐饮 / 会员卡 / 课程预约、订单、余额支付、限时秒杀、Elasticsearch 搜索、Sentinel 流控与 Seata 分布式事务。
+本项目是一个健身房全栈微服务系统：后端 Spring Cloud Alibaba（12 个微服务，16 个 Maven 子模块），前端 Vue 3 + Vite + Element Plus，中间件由 Docker Compose 一键编排。覆盖登录鉴权、用户 / 教练 / 商品 / 餐饮 / 会员卡 / 课程预约、订单、余额支付、限时秒杀、Elasticsearch 搜索、Sentinel 流控与 Seata 分布式事务。
 
 本文档中的所有端口、库名、Redis key、接口返回、版本号均与仓库代码和 Nacos 配置一致（按实际实现整理）。
 
