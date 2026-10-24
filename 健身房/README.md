@@ -122,6 +122,7 @@ gym:
 | `NACOS_USERNAME` / `NACOS_PASSWORD` | Seata 注册与配置、网关服务发现 | `nacos` / `nacos` |
 | `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | 公共配置的 RabbitMQ | `guest` / `guest` |
 | `JWT_SECRET` | 网关、auth 及各服务的签名密钥 | 内置演示密钥 |
+| `DEFAULT_USER_PASSWORD` | 新建用户的初始密码 | `123456` |
 | `MYSQL_ROOT_PASSWORD` / `RABBITMQ_DEFAULT_*` | docker compose 容器 | `root` / `guest` |
 
 ***

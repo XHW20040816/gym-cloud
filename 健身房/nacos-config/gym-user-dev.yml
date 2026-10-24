@@ -62,7 +62,7 @@ mybatis-plus:
 # ========== 服务特有配置 ==========
 gym:
   user:
-    default-password: 123456
+    default-password: ${DEFAULT_USER_PASSWORD:123456}
     default-avatar: https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=gym%20user%20avatar&image_size=square
     password-salt: "GymUserPasswordSalt2024"
   # 课程预约容量控制

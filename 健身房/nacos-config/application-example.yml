@@ -28,6 +28,10 @@ RABBITMQ_PASSWORD: guest
 # 生产环境务必替换为 >=256 bit 的随机串，例如：openssl rand -base64 48
 JWT_SECRET: GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
+# ---------- 业务默认值（gym-user） ----------
+# 新建用户时的初始密码，以及演示账号的密码
+DEFAULT_USER_PASSWORD: 123456
+
 # ---------- docker compose（中间件容器自身） ----------
 # 在 健身房 目录执行 docker compose 时，系统环境变量或同目录 .env 文件的同名变量优先
 MYSQL_ROOT_PASSWORD: root
