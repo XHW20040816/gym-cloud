@@ -114,7 +114,7 @@ async function load() {
         name: stripHighlight(item.name),
         description: stripHighlight(item.description)
       }))
-      total.value = page?.total || 0
+      total.value = Number(page?.total) || 0
     } else {
       const page = await getGoodsPage({
         pageNum: pageNum.value,
@@ -123,7 +123,7 @@ async function load() {
         status: 1
       })
       goodsList.value = page?.rows || []
-      total.value = page?.total || 0
+      total.value = Number(page?.total) || 0
     }
   } catch (e) {
     goodsList.value = []

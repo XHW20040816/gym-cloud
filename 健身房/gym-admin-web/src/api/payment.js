@@ -8,25 +8,23 @@ export function getPaymentList(params) {
   })
 }
 
-export function getPaymentById(id) {
+export function getPaymentDetail(paymentNo) {
   return request({
-    url: `/payment/${id}`,
+    url: `/payment/detail/${paymentNo}`,
     method: 'get'
   })
 }
 
-export function refundPayment(id, data) {
+export function refundPayment(paymentNo) {
   return request({
-    url: `/payment/${id}/refund`,
-    method: 'post',
-    data
+    url: `/payment/${paymentNo}/refund`,
+    method: 'post'
   })
 }
 
-export function getPaymentStatistics(params) {
+export function getPaymentStatistics() {
   return request({
     url: '/payment/statistics',
-    method: 'get',
-    params
+    method: 'get'
   })
 }

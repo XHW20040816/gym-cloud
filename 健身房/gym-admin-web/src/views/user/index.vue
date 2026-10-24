@@ -92,8 +92,8 @@
           <template #default="{ row }">
             <el-switch
               v-model="row.status"
-              :active-value="1"
-              :inactive-value="0"
+              active-value="NORMAL"
+              inactive-value="DISABLED"
               inline-prompt
               active-text="启"
               inactive-text="停"
@@ -156,12 +156,9 @@
         </el-form-item>
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="formData.status">
-            <el-radio :value="1">启用</el-radio>
-            <el-radio :value="0">停用</el-radio>
+            <el-radio value="NORMAL">启用</el-radio>
+            <el-radio value="DISABLED">停用</el-radio>
           </el-radio-group>
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="formData.remark" type="textarea" :rows="3" placeholder="选填" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -176,6 +173,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { validatePhone, validateEmail } from '@/utils/validate'
+import { getUserList, createUser, updateUser, deleteUser, updateUserStatus, resetPassword } from '@/api/user'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -184,100 +182,49 @@ const isEdit = ref(false)
 const dialogFormRef = ref(null)
 const selectedIds = ref([])
 
-const searchForm = reactive({
-  username: '',
-  nickname: '',
-  phone: '',
-  role: '',
-  status: ''
-})
-
-const pagination = reactive({
-  pageNum: 1,
-  pageSize: 10,
-  total: 0
-})
-
-const mockUsers = []
-const roles = ['ADMIN', 'COACH', 'USER']
-const firstNames = ['张', '李', '王', '赵', '刘', '陈', '杨', '黄', '周', '吴']
-const lastNames = ['伟', '芳', '娜', '敏', '静', '丽', '强', '磊', '军', '洋']
-for (let i = 1; i <= 56; i++) {
-  const fn = firstNames[i % firstNames.length]
-  const ln = lastNames[(i * 3) % lastNames.length]
-  mockUsers.push({
-    id: i,
-    username: 'user' + i,
-    nickname: fn + ln,
-    phone: '138' + String(10000000 + i).padStart(8, '0'),
-    email: 'user' + i + '@gym.com',
-    role: roles[i % 3],
-    status: i % 7 === 0 ? 0 : 1,
-    avatar: '',
-    remark: '',
-    createTime: '2025-0' + ((i % 9) + 1) + '-' + String((i % 28) + 1).padStart(2, '0') + ' 10:' + String(i % 60).padStart(2, '0') + ':00'
-  })
-}
-
+const searchForm = reactive({ username: '', nickname: '', phone: '', role: '', status: '' })
+const pagination = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 const tableData = ref([])
 
-function loadData() {
+async function loadData() {
   loading.value = true
-  setTimeout(() => {
-    let list = mockUsers.filter((u) => {
-      if (searchForm.username && !u.username.includes(searchForm.username)) return false
-      if (searchForm.nickname && !u.nickname.includes(searchForm.nickname)) return false
-      if (searchForm.phone && !u.phone.includes(searchForm.phone)) return false
-      if (searchForm.role && u.role !== searchForm.role) return false
-      if (searchForm.status !== '' && String(u.status) !== searchForm.status) return false
-      return true
+  try {
+    const res = await getUserList({
+      pageNum: pagination.pageNum,
+      pageSize: pagination.pageSize,
+      username: searchForm.username || undefined,
+      nickname: searchForm.nickname || undefined,
+      phone: searchForm.phone || undefined,
+      role: searchForm.role || undefined,
+      status: searchForm.status !== '' ? searchForm.status : undefined
     })
-    pagination.total = list.length
-    const start = (pagination.pageNum - 1) * pagination.pageSize
-    tableData.value = list.slice(start, start + pagination.pageSize)
+    tableData.value = res?.rows || []
+    pagination.total = Number(res?.total) || 0
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
-function handleSearch() {
-  pagination.pageNum = 1
-  loadData()
-}
+function handleSearch() { pagination.pageNum = 1; loadData() }
+function handleReset() { Object.assign(searchForm, { username: '', nickname: '', phone: '', role: '', status: '' }); handleSearch() }
 
-function handleReset() {
-  Object.assign(searchForm, { username: '', nickname: '', phone: '', role: '', status: '' })
-  handleSearch()
-}
+function roleType(role) { return { ADMIN: 'danger', COACH: 'warning', USER: 'info' }[role] || 'info' }
+function roleText(role) { return { ADMIN: '管理员', COACH: '教练', USER: '用户' }[role] || role }
 
-function roleType(role) {
-  return { ADMIN: 'danger', COACH: 'warning', USER: 'info' }[role] || 'info'
-}
-function roleText(role) {
-  return { ADMIN: '管理员', COACH: '教练', USER: '用户' }[role] || role
-}
-
-function handleSelectionChange(rows) {
-  selectedIds.value = rows.map((r) => r.id)
-}
+function handleSelectionChange(rows) { selectedIds.value = rows.map((r) => r.id) }
 
 const formData = reactive({
-  id: null,
-  username: '',
-  password: '',
-  nickname: '',
-  phone: '',
-  email: '',
-  role: 'USER',
-  status: 1,
-  remark: ''
+  id: null, username: '', password: '', nickname: '', phone: '', email: '',
+  role: 'USER', status: 'NORMAL'
 })
-
 const formRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '长度 3-20 个字符', trigger: 'blur' }
   ],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+  password: [
+    { validator: (_, v, cb) => (!isEdit.value && !v ? cb(new Error('请输入密码')) : cb()), trigger: 'blur' }
+  ],
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
   phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
@@ -291,27 +238,16 @@ const formRules = {
 
 function resetForm() {
   Object.assign(formData, {
-    id: null,
-    username: '',
-    password: '',
-    nickname: '',
-    phone: '',
-    email: '',
-    role: 'USER',
-    status: 1,
-    remark: ''
+    id: null, username: '', password: '', nickname: '', phone: '', email: '',
+    role: 'USER', status: 'NORMAL'
   })
 }
 
-function handleAdd() {
-  isEdit.value = false
-  resetForm()
-  dialogVisible.value = true
-}
-
+function handleAdd() { isEdit.value = false; resetForm(); dialogVisible.value = true }
 function handleEdit(row) {
   isEdit.value = true
   Object.assign(formData, JSON.parse(JSON.stringify(row)))
+  formData.password = ''
   dialogVisible.value = true
 }
 
@@ -320,38 +256,56 @@ async function handleSubmit() {
   await dialogFormRef.value.validate(async (valid) => {
     if (!valid) return
     submitLoading.value = true
-    setTimeout(() => {
+    try {
+      const payload = {
+        id: formData.id,
+        username: formData.username,
+        password: formData.password,
+        nickname: formData.nickname,
+        phone: formData.phone,
+        email: formData.email,
+        role: formData.role,
+        status: formData.status
+      }
       if (isEdit.value) {
-        const idx = mockUsers.findIndex((u) => u.id === formData.id)
-        if (idx > -1) Object.assign(mockUsers[idx], formData)
+        delete payload.password
+        await updateUser(payload)
         ElMessage.success('编辑成功')
       } else {
-        const newUser = { ...formData, id: Date.now(), createTime: new Date().toLocaleString() }
-        mockUsers.unshift(newUser)
+        await createUser(payload)
         ElMessage.success('新增成功')
       }
-      submitLoading.value = false
       dialogVisible.value = false
       loadData()
-    }, 400)
+    } finally {
+      submitLoading.value = false
+    }
   })
 }
 
-function updateStatus(row, val) {
-  ElMessage.success(`已${val === 1 ? '启用' : '停用'}用户：${row.nickname}`)
+async function updateStatus(row, val) {
+  const status = val === 'NORMAL' ? 1 : 0
+  try {
+    await updateUserStatus(row.id, status)
+    ElMessage.success(`已${status === 1 ? '启用' : '停用'}用户：${row.nickname || row.username}`)
+  } catch (e) {
+    loadData()
+  }
 }
 
 function handleResetPwd(row) {
-  ElMessageBox.confirm(`确定要重置用户「${row.nickname}」的密码为 123456 吗？`, '提示', { type: 'warning' })
-    .then(() => ElMessage.success('密码重置成功：123456'))
+  ElMessageBox.confirm(`确定要重置用户「${row.nickname || row.username}」的密码为 123456 吗？`, '提示', { type: 'warning' })
+    .then(async () => {
+      await resetPassword(row.id)
+      ElMessage.success('密码已重置为 123456')
+    })
     .catch(() => {})
 }
 
 function handleDelete(row) {
-  ElMessageBox.confirm(`确定删除用户「${row.nickname}」吗？`, '删除确认', { type: 'error' })
-    .then(() => {
-      const idx = mockUsers.findIndex((u) => u.id === row.id)
-      if (idx > -1) mockUsers.splice(idx, 1)
+  ElMessageBox.confirm(`确定删除用户「${row.nickname || row.username}」吗？`, '删除确认', { type: 'error' })
+    .then(async () => {
+      await deleteUser(row.id)
       ElMessage.success('删除成功')
       loadData()
     })
@@ -360,11 +314,8 @@ function handleDelete(row) {
 
 function handleBatchDelete() {
   ElMessageBox.confirm(`确定删除选中的 ${selectedIds.value.length} 个用户吗？`, '批量删除', { type: 'error' })
-    .then(() => {
-      selectedIds.value.forEach((id) => {
-        const idx = mockUsers.findIndex((u) => u.id === id)
-        if (idx > -1) mockUsers.splice(idx, 1)
-      })
+    .then(async () => {
+      await Promise.all(selectedIds.value.map((id) => deleteUser(id)))
       selectedIds.value = []
       ElMessage.success('批量删除成功')
       loadData()
@@ -373,7 +324,23 @@ function handleBatchDelete() {
 }
 
 function handleExport() {
-  ElMessage.success('导出功能触发（演示）')
+  if (!tableData.value.length) { ElMessage.warning('暂无数据可导出'); return }
+  const headers = ['用户名', '昵称', '手机号', '邮箱', '角色', '状态', '注册时间']
+  const rows = tableData.value.map((u) => [
+    u.username, u.nickname, u.phone, u.email,
+    roleText(u.role), u.status === 'NORMAL' ? '启用' : '停用',
+    u.createTime
+  ])
+  const csv = [headers, ...rows]
+    .map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = '用户列表.csv'
+  link.click()
+  URL.revokeObjectURL(link.href)
+  ElMessage.success('导出成功')
 }
 
 onMounted(loadData)

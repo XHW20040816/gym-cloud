@@ -18,6 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
@@ -122,5 +129,62 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BizException("用户余额不足");
         }
         return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean addBalance(Long userId, BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BizException("退款金额必须大于0");
+        }
+        int rows = userMapper.addBalance(userId, amount);
+        if (rows == 0) {
+            throw new BizException("用户不存在");
+        }
+        return true;
+    }
+
+    @Override
+    public Map<String, Object> statistics() {
+        long total = userMapper.countAll();
+
+        Map<String, Long> roleCounts = new LinkedHashMap<>();
+        roleCounts.put("ADMIN", 0L);
+        roleCounts.put("COACH", 0L);
+        roleCounts.put("USER", 0L);
+        for (Map<String, Object> row : userMapper.countByRole()) {
+            Object r = row.get("role");
+            Object cnt = row.get("cnt");
+            if (r != null) {
+                roleCounts.put(String.valueOf(r), cnt == null ? 0L : Long.parseLong(String.valueOf(cnt)));
+            }
+        }
+
+        LocalDateTime start = LocalDateTime.now().minusDays(29).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        List<Map<String, Object>> rows = userMapper.countGroupByDay(
+                start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        Map<String, Long> dayMap = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object d = row.get("d");
+            Object cnt = row.get("cnt");
+            if (d != null) {
+                dayMap.put(String.valueOf(d), cnt == null ? 0L : Long.parseLong(String.valueOf(cnt)));
+            }
+        }
+        List<Map<String, Object>> trend = new ArrayList<>();
+        for (int i = 0; i < 30; i++) {
+            LocalDateTime day = start.plusDays(i);
+            String key = day.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            Map<String, Object> point = new LinkedHashMap<>();
+            point.put("date", day.format(DateTimeFormatter.ofPattern("MM-dd")));
+            point.put("count", dayMap.getOrDefault(key, 0L));
+            trend.add(point);
+        }
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("total", total);
+        data.put("trend", trend);
+        data.put("roleCounts", roleCounts);
+        return data;
     }
 }

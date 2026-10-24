@@ -2,6 +2,7 @@ import request from './request'
 
 // 认证
 export const login = (data) => request({ url: '/auth/login', method: 'post', data })
+export const register = (data) => request({ url: '/auth/register', method: 'post', data })
 export const logout = () => request({ url: '/auth/logout', method: 'post' })
 export const getAuthInfo = () => request({ url: '/auth/info', method: 'get' })
 
@@ -55,11 +56,5 @@ export const cancelOrder = (orderNo) =>
 
 // 支付
 export const pay = (data) => request({ url: '/payment/pay', method: 'post', data })
-export const mockCallback = (payType, orderNo, tradeNo) =>
-  request({
-    url: payType === 2 ? '/payment/callback/alipay' : '/payment/callback/wechat',
-    method: 'post',
-    params: payType === 2 ? { outTradeNo: orderNo, tradeNo } : { outTradeNo: orderNo, transactionId: tradeNo }
-  })
 export const getMyPayments = (params) =>
   request({ url: '/payment/my', method: 'get', params })

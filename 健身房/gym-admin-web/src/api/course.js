@@ -50,7 +50,7 @@ export function updateCourseStatus(id, status) {
 // 课程排期 API
 export function getScheduleList(params) {
   return request({
-    url: '/schedule/page',
+    url: '/course/schedule/page',
     method: 'get',
     params
   })
@@ -58,14 +58,14 @@ export function getScheduleList(params) {
 
 export function getScheduleById(id) {
   return request({
-    url: `/schedule/${id}`,
+    url: `/course/schedule/${id}`,
     method: 'get'
   })
 }
 
 export function createSchedule(data) {
   return request({
-    url: '/schedule',
+    url: '/course/schedule',
     method: 'post',
     data
   })
@@ -73,7 +73,7 @@ export function createSchedule(data) {
 
 export function updateSchedule(data) {
   return request({
-    url: '/schedule',
+    url: '/course/schedule',
     method: 'put',
     data
   })
@@ -81,14 +81,16 @@ export function updateSchedule(data) {
 
 export function deleteSchedule(id) {
   return request({
-    url: `/schedule/${id}`,
+    url: `/course/schedule/${id}`,
     method: 'delete'
   })
 }
 
-export function getCoachList() {
+// 教练 API
+export function getCoachList(params) {
   return request({
-    url: '/coach/list',
-    method: 'get'
+    url: '/coach/page',
+    method: 'get',
+    params: { pageNum: 1, pageSize: 200, ...params }
   })
 }

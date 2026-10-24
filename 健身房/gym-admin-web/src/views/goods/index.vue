@@ -139,20 +139,8 @@
           </el-col>
         </el-row>
         <el-form-item label="商品封面">
-          <el-upload
-            class="cover-uploader"
-            :show-file-list="false"
-            :auto-upload="false"
-            :on-change="handleCoverChange"
-            accept="image/*"
-          >
-            <el-image v-if="formData.cover" :src="formData.cover" fit="cover" class="cover-preview" />
-            <div v-else class="cover-placeholder">
-              <el-icon :size="28"><Plus /></el-icon>
-              <div>上传封面</div>
-            </div>
-          </el-upload>
-          <div class="upload-tip">建议尺寸 400x400，支持 JPG/PNG</div>
+          <el-input v-model="formData.cover" placeholder="请输入图片 URL（可选，支持外链）" clearable />
+          <div class="upload-tip">建议尺寸 400x400，支持 JPG/PNG 图片外链</div>
         </el-form-item>
         <el-form-item label="商品描述">
           <el-input v-model="formData.description" type="textarea" :rows="4" placeholder="请输入商品描述..." />
@@ -183,6 +171,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getGoodsList, createGoods, updateGoods, deleteGoods, updateGoodsStatus, getCategoryList } from '@/api/goods'
 
 const loading = ref(false)
 const submitLoading = ref(false)
@@ -195,57 +184,37 @@ const newStock = ref(0)
 
 const placeholderImg = 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png'
 
-const categoryList = [
-  { id: 1, name: '蛋白粉' },
-  { id: 2, name: '肌酸' },
-  { id: 3, name: '运动服饰' },
-  { id: 4, name: '健身器材' },
-  { id: 5, name: '补剂饮料' },
-  { id: 6, name: '其他配件' }
-]
-
+const categoryList = ref([])
 const searchForm = reactive({ name: '', categoryId: '', status: '' })
 const pagination = reactive({ pageNum: 1, pageSize: 10, total: 0 })
-
-const goodsNames = ['乳清蛋白粉 5磅', '肌酸粉 300g', 'BCAA支链氨基酸', '运动紧身衣男款', '运动紧身裤女款',
-  '专业跑步鞋', '瑜伽垫 6mm', '哑铃套装 20kg', '健身手套', '护膝护腕套装', '泡沫轴', '蛋白棒 12支装',
-  '左旋肉碱口服液', '筋膜枪', '健身水杯', '运动头带', '拉力绳套装', '弹力带', '负重背心', '跳绳']
-
-const mockGoods = []
-for (let i = 1; i <= 42; i++) {
-  mockGoods.push({
-    id: i,
-    name: goodsNames[i % goodsNames.length] + (i > goodsNames.length ? ' ' + Math.ceil(i / goodsNames.length) : ''),
-    categoryId: ((i - 1) % 6) + 1,
-    price: Number((Math.random() * 500 + 20).toFixed(2)),
-    stock: Math.floor(Math.random() * 500 + 10),
-    sales: Math.floor(Math.random() * 2000),
-    status: i % 11 === 0 ? 0 : 1,
-    cover: '',
-    description: '优质商品，健身必备，品质保证。',
-    createTime: '2025-0' + ((i % 9) + 1) + '-' + String((i % 28) + 1).padStart(2, '0') + ' 10:00:00'
-  })
-}
-
 const tableData = ref([])
-function categoryName(id) {
-  return categoryList.find((c) => c.id === id)?.name || '-'
+
+async function loadCategories() {
+  try {
+    const res = await getCategoryList()
+    categoryList.value = res?.rows || []
+  } catch (e) {}
 }
 
-function loadData() {
+function categoryName(id) {
+  return categoryList.value.find((c) => c.id === id)?.name || '-'
+}
+
+async function loadData() {
   loading.value = true
-  setTimeout(() => {
-    let list = mockGoods.filter((g) => {
-      if (searchForm.name && !g.name.includes(searchForm.name)) return false
-      if (searchForm.categoryId && g.categoryId !== Number(searchForm.categoryId)) return false
-      if (searchForm.status !== '' && String(g.status) !== searchForm.status) return false
-      return true
+  try {
+    const res = await getGoodsList({
+      pageNum: pagination.pageNum,
+      pageSize: pagination.pageSize,
+      categoryId: searchForm.categoryId || undefined,
+      nameLike: searchForm.name || undefined,
+      status: searchForm.status !== '' ? searchForm.status : undefined
     })
-    pagination.total = list.length
-    const start = (pagination.pageNum - 1) * pagination.pageSize
-    tableData.value = list.slice(start, start + pagination.pageSize)
+    tableData.value = res?.rows || []
+    pagination.total = Number(res?.total) || 0
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
 function handleSearch() { pagination.pageNum = 1; loadData() }
@@ -271,33 +240,43 @@ function handleEdit(row) {
   Object.assign(formData, JSON.parse(JSON.stringify(row)))
   dialogVisible.value = true
 }
-function handleCoverChange(file) {
-  const reader = new FileReader()
-  reader.onload = (e) => { formData.cover = e.target.result }
-  reader.readAsDataURL(file.raw)
-}
 async function handleSubmit() {
   if (!formRef.value) return
-  await formRef.value.validate((valid) => {
+  await formRef.value.validate(async (valid) => {
     if (!valid) return
     submitLoading.value = true
-    setTimeout(() => {
+    try {
+      const payload = {
+        id: formData.id,
+        name: formData.name,
+        categoryId: formData.categoryId,
+        price: formData.price,
+        stock: formData.stock,
+        status: formData.status,
+        cover: formData.cover || undefined,
+        description: formData.description
+      }
       if (isEdit.value) {
-        const idx = mockGoods.findIndex((g) => g.id === formData.id)
-        if (idx > -1) Object.assign(mockGoods[idx], formData)
+        await updateGoods(payload)
         ElMessage.success('编辑成功')
       } else {
-        mockGoods.unshift({ ...formData, id: Date.now(), sales: 0, createTime: new Date().toLocaleString() })
+        await createGoods(payload)
         ElMessage.success('新增成功')
       }
-      submitLoading.value = false
       dialogVisible.value = false
       loadData()
-    }, 400)
+    } finally {
+      submitLoading.value = false
+    }
   })
 }
-function updateStatus(row, val) {
-  ElMessage.success(`已${val === 1 ? '上架' : '下架'}：${row.name}`)
+async function updateStatus(row, val) {
+  try {
+    await updateGoodsStatus(row.id, val)
+    ElMessage.success(`已${val === 1 ? '上架' : '下架'}：${row.name}`)
+  } catch (e) {
+    loadData()
+  }
 }
 function handleStock(row) {
   Object.assign(formData, row)
@@ -305,24 +284,26 @@ function handleStock(row) {
   newStock.value = row.stock
   stockVisible.value = true
 }
-function confirmStock() {
-  const idx = mockGoods.findIndex((g) => g.id === formData.id)
-  if (idx > -1) mockGoods[idx].stock = newStock.value
-  ElMessage.success('库存修改成功')
-  stockVisible.value = false
-  loadData()
+async function confirmStock() {
+  try {
+    await updateGoods({ id: formData.id, stock: newStock.value })
+    ElMessage.success('库存修改成功')
+    stockVisible.value = false
+    loadData()
+  } finally {
+    stockVisible.value = false
+  }
 }
 function handleDelete(row) {
   ElMessageBox.confirm(`确定删除「${row.name}」吗？`, '提示', { type: 'error' })
-    .then(() => {
-      const idx = mockGoods.findIndex((g) => g.id === row.id)
-      if (idx > -1) mockGoods.splice(idx, 1)
+    .then(async () => {
+      await deleteGoods(row.id)
       ElMessage.success('删除成功')
       loadData()
     })
     .catch(() => {})
 }
-onMounted(loadData)
+onMounted(() => { loadCategories(); loadData() })
 </script>
 
 <style scoped lang="scss">

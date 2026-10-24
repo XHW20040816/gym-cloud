@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Map;
 
 @Api(tags = "用户管理")
 @RestController
@@ -78,6 +79,14 @@ public class UserController {
             if (userIdStr == null || !userIdStr.equals(String.valueOf(user.getId()))) {
                 return R.fail(ResultCode.FORBIDDEN);
             }
+            // 白名单：仅允许改基础资料，防止提权/篡改余额积分状态
+            User safe = new User();
+            safe.setId(user.getId());
+            safe.setNickname(user.getNickname());
+            safe.setPhone(user.getPhone());
+            safe.setEmail(user.getEmail());
+            safe.setAvatar(user.getAvatar());
+            user = safe;
         }
         userService.updateUser(user);
         return R.ok();
@@ -105,5 +114,29 @@ public class UserController {
         }
         userService.updateStatus(userId, status);
         return R.ok();
+    }
+
+    @ApiOperation("重置用户密码为默认123456")
+    @PutMapping("/{id}/reset-password")
+    public R<Void> resetPassword(@PathVariable Long id, HttpServletRequest request) {
+        String role = request.getHeader("X-User-Role");
+        if (!"ADMIN".equals(role)) {
+            return R.fail(ResultCode.FORBIDDEN);
+        }
+        User user = new User();
+        user.setId(id);
+        user.setPassword("123456");
+        userService.updateUser(user);
+        return R.ok();
+    }
+
+    @ApiOperation("用户统计（ADMIN）")
+    @GetMapping("/statistics")
+    public R<Map<String, Object>> statistics(HttpServletRequest request) {
+        String role = request.getHeader("X-User-Role");
+        if (!"ADMIN".equals(role)) {
+            return R.fail(ResultCode.FORBIDDEN);
+        }
+        return R.ok(userService.statistics());
     }
 }

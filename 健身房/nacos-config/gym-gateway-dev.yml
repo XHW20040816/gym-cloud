@@ -159,6 +159,7 @@ gym:
   auth:
     white-list:
       - /api/auth/login
+      - /api/auth/register
       - /api/auth/refresh
       - /api/auth/logout
       - /api/auth/captcha

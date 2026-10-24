@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.Version;
 import com.gym.entity.BaseEntity;
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
@@ -59,4 +60,9 @@ public class Goods extends BaseEntity {
     @ApiModelProperty(value = "状态")
     @TableField("status")
     private Integer status;
+
+    @ApiModelProperty(value = "乐观锁版本号")
+    @Version
+    @TableField("version")
+    private Integer version;
 }

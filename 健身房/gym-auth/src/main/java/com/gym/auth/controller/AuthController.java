@@ -1,6 +1,7 @@
 package com.gym.auth.controller;
 
 import com.gym.api.dto.LoginUserDTO;
+import com.gym.api.dto.RegisterDTO;
 import com.gym.api.dto.TokenVO;
 import com.gym.api.dto.UserInfoVO;
 import com.gym.api.user.UserFeignClient;
@@ -10,6 +11,7 @@ import com.gym.common.result.R;
 import com.gym.common.result.ResultCode;
 import com.gym.common.util.JwtUtil;
 import com.gym.common.util.RedisCache;
+import com.gym.entity.enums.RoleType;
 import com.gym.entity.user.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -59,6 +61,9 @@ public class AuthController {
 
     @Value("${jwt.ttl.refresh:604800}")
     private Long refreshTtl;
+
+    @Value("${gym.register.admin-invite-code:}")
+    private String adminInviteCode;
 
     private SecretKey getSignKey() {
         byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
@@ -125,6 +130,38 @@ public class AuthController {
                 .expires_in(accessTtl)
                 .build();
         return R.ok(vo);
+    }
+
+    @ApiOperation("注册：USER/COACH 可公开注册，ADMIN 需邀请码")
+    @PostMapping("/register")
+    public R<Void> register(@RequestBody RegisterDTO dto) {
+        if (dto == null || !StringUtils.hasText(dto.getUsername()) || !StringUtils.hasText(dto.getPassword())) {
+            return R.fail(ResultCode.PARAM_ERROR, "用户名和密码不能为空");
+        }
+        // 角色：默认 USER，仅 USER/COACH 可公开注册，ADMIN 需邀请码
+        String role = StringUtils.hasText(dto.getRole()) ? dto.getRole().toUpperCase() : "USER";
+        if ("ADMIN".equals(role)) {
+            if (!StringUtils.hasText(adminInviteCode) || !adminInviteCode.equals(dto.getInviteCode())) {
+                return R.fail(ResultCode.FORBIDDEN, "管理员邀请码错误");
+            }
+        } else if (!"USER".equals(role) && !"COACH".equals(role)) {
+            return R.fail(ResultCode.PARAM_ERROR, "非法的角色类型");
+        }
+
+        User user = new User();
+        user.setUsername(dto.getUsername());
+        user.setPassword(dto.getPassword());
+        user.setRole(RoleType.valueOf(role));
+        user.setNickname(dto.getNickname());
+        user.setPhone(dto.getPhone());
+        user.setEmail(dto.getEmail());
+
+        R<Long> r = userFeignClient.register(user);
+        if (r == null || !r.isSuccess()) {
+            return R.fail(r == null ? ResultCode.FAIL.getCode() : r.getCode(),
+                    r == null ? "注册失败" : r.getMsg());
+        }
+        return R.ok();
     }
 
     @ApiOperation("刷新 access_token：Header 传入 refresh_token")

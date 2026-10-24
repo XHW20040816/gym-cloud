@@ -3,34 +3,25 @@
     <el-card shadow="never" class="tabs-card">
       <el-tabs v-model="activeStatus" class="order-tabs" @tab-change="handleTabChange">
         <el-tab-pane label="全部" name="">
-          <template #label><span class="tab-label"><el-icon><Tickets /></el-icon>全部<el-badge v-if="counts.total" :value="counts.total" class="tab-badge" :max="999" /></span></template>
+          <template #label><span class="tab-label"><el-icon><Tickets /></el-icon>全部</span></template>
         </el-tab-pane>
         <el-tab-pane label="待支付" name="0">
-          <template #label><span class="tab-label"><el-icon><Clock /></el-icon>待支付<el-badge v-if="counts.pending" :value="counts.pending" class="tab-badge" type="warning" :max="999" /></span></template>
+          <template #label><span class="tab-label"><el-icon><Clock /></el-icon>待支付</span></template>
         </el-tab-pane>
         <el-tab-pane label="已支付" name="1">
-          <template #label><span class="tab-label"><el-icon><Wallet /></el-icon>已支付<el-badge v-if="counts.paid" :value="counts.paid" class="tab-badge" type="success" :max="999" /></span></template>
+          <template #label><span class="tab-label"><el-icon><Wallet /></el-icon>已支付</span></template>
         </el-tab-pane>
-        <el-tab-pane label="已完成" name="2">
-          <template #label><span class="tab-label"><el-icon><CircleCheck /></el-icon>已完成<el-badge v-if="counts.done" :value="counts.done" class="tab-badge" type="info" :max="999" /></span></template>
+        <el-tab-pane label="已完成" name="3">
+          <template #label><span class="tab-label"><el-icon><CircleCheck /></el-icon>已完成</span></template>
         </el-tab-pane>
-        <el-tab-pane label="已取消" name="3">
-          <template #label><span class="tab-label"><el-icon><CircleClose /></el-icon>已取消<el-badge v-if="counts.canceled" :value="counts.canceled" class="tab-badge" type="danger" :max="999" /></span></template>
+        <el-tab-pane label="已取消" name="4">
+          <template #label><span class="tab-label"><el-icon><CircleClose /></el-icon>已取消</span></template>
         </el-tab-pane>
       </el-tabs>
 
       <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="订单号">
           <el-input v-model="searchForm.orderNo" placeholder="请输入订单号" clearable prefix-icon="Tickets" @keyup.enter="handleSearch" />
-        </el-form-item>
-        <el-form-item label="下单用户">
-          <el-input v-model="searchForm.username" placeholder="用户名/昵称" clearable @keyup.enter="handleSearch" />
-        </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="searchForm.phone" placeholder="手机号" clearable prefix-icon="Phone" @keyup.enter="handleSearch" />
-        </el-form-item>
-        <el-form-item label="下单时间">
-          <el-date-picker v-model="searchForm.dateRange" type="daterange" start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
@@ -43,15 +34,12 @@
       <template #header>
         <div class="table-header">
           <span class="header-title">订单列表（共 {{ page.total }} 条）</span>
-          <div>
-            <el-button icon="Download" @click="ElMessage.success('导出订单（演示）')">导出订单</el-button>
-          </div>
         </div>
       </template>
 
-      <el-table :data="tableData" border stripe v-loading="loading" style="width:100%" @row-click="openDetail">
+      <el-table :data="tableData" border stripe v-loading="loading" style="width:100%">
         <el-table-column type="index" label="序号" width="60" align="center" />
-        <el-table-column prop="orderNo" label="订单号" min-width="180">
+        <el-table-column prop="orderNo" label="订单号" min-width="200">
           <template #default="{ row }">
             <span class="order-no">{{ row.orderNo }}</span>
           </template>
@@ -62,7 +50,7 @@
               <el-avatar :size="28" :src="row.avatar">
                 <el-icon :size="16"><User /></el-icon>
               </el-avatar>
-              <span>{{ row.nickname }}</span>
+              <span>{{ row.nickname || row.userId }}</span>
             </div>
           </template>
         </el-table-column>
@@ -72,14 +60,14 @@
             <div class="goods-cell">
               <el-image :src="row.goodsCover || placeholder" fit="cover" style="width:40px;height:40px;border-radius:4px;margin-right:8px" />
               <div>
-                <div class="goods-name">{{ row.goodsName }}</div>
-                <div class="goods-qty">x{{ row.quantity }}</div>
+                <div class="goods-name">{{ row.goodsName || '-' }}</div>
+                <div class="goods-qty" v-if="row.quantity">x{{ row.quantity }}</div>
               </div>
             </div>
           </template>
         </el-table-column>
         <el-table-column label="订单金额" width="110" align="right">
-          <template #default="{ row }"><span class="amount">¥{{ Number(row.amount).toFixed(2) }}</span></template>
+          <template #default="{ row }"><span class="amount">¥{{ Number(row.payAmount ?? row.totalAmount).toFixed(2) }}</span></template>
         </el-table-column>
         <el-table-column label="支付方式" width="100" align="center">
           <template #default="{ row }">
@@ -97,9 +85,9 @@
         <el-table-column prop="createTime" label="下单时间" width="160" />
         <el-table-column label="操作" width="180" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link icon="View" @click.stop="openDetail(row)">详情</el-button>
-            <el-button v-if="row.status === 0" type="warning" link icon="CircleClose" @click.stop="cancelOrder(row)">取消</el-button>
-            <el-button v-if="row.status === 1" type="success" link icon="CircleCheck" @click.stop="finishOrder(row)">完成</el-button>
+            <el-button type="primary" link icon="View" @click="openDetail(row)">详情</el-button>
+            <el-button v-if="isUnpaid(row)" type="warning" link icon="CircleClose" @click="cancelOrder(row)">取消</el-button>
+            <el-button v-if="isPaid(row)" type="success" link icon="CircleCheck" @click="finishOrder(row)">完成</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -120,47 +108,39 @@
             <span class="order-no">{{ currentOrder.orderNo }}</span>
             <el-button type="primary" link icon="DocumentCopy" @click="copyNo">复制</el-button>
           </el-descriptions-item>
-          <el-descriptions-item label="下单用户">{{ currentOrder.nickname }}</el-descriptions-item>
-          <el-descriptions-item label="手机号">{{ currentOrder.phone }}</el-descriptions-item>
+          <el-descriptions-item label="下单用户">{{ currentOrder.nickname || currentOrder.userId }}</el-descriptions-item>
+          <el-descriptions-item label="手机号">{{ currentOrder.phone || '-' }}</el-descriptions-item>
           <el-descriptions-item label="订单状态">
             <el-tag :type="statusType(currentOrder.status)" effect="light">{{ statusText(currentOrder.status) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="支付方式">{{ payTypeText(currentOrder.payType) || '-' }}</el-descriptions-item>
           <el-descriptions-item label="下单时间" :span="2">{{ currentOrder.createTime }}</el-descriptions-item>
           <el-descriptions-item label="支付时间" v-if="currentOrder.payTime" :span="2">{{ currentOrder.payTime }}</el-descriptions-item>
+          <el-descriptions-item label="订单备注" :span="2">{{ currentOrder.remark || '无' }}</el-descriptions-item>
         </el-descriptions>
 
         <el-descriptions :column="1" border class="mb-16" title="商品信息">
           <el-descriptions-item label="商品">
-            <div class="goods-cell">
-              <el-image :src="currentOrder.goodsCover || placeholder" fit="cover" style="width:60px;height:60px;border-radius:6px;margin-right:12px" />
+            <div v-for="(it, idx) in detailItems" :key="idx" class="goods-cell" style="margin-bottom: 8px">
+              <el-image :src="it.goodsCover || placeholder" fit="cover" style="width:48px;height:48px;border-radius:6px;margin-right:12px" />
               <div>
-                <div class="goods-name-lg">{{ currentOrder.goodsName }}</div>
-                <div class="muted">单价：¥{{ Number(currentOrder.price).toFixed(2) }} × {{ currentOrder.quantity }}</div>
+                <div class="goods-name-lg">{{ it.goodsName }}</div>
+                <div class="muted">单价：¥{{ Number(it.price).toFixed(2) }} × {{ it.quantity }}</div>
               </div>
             </div>
           </el-descriptions-item>
         </el-descriptions>
 
-        <el-descriptions :column="2" border class="mb-16" title="金额信息">
-          <el-descriptions-item label="商品金额">¥{{ Number(currentOrder.amount).toFixed(2) }}</el-descriptions-item>
-          <el-descriptions-item label="优惠金额">-¥{{ Number(currentOrder.discount || 0).toFixed(2) }}</el-descriptions-item>
-          <el-descriptions-item label="运费">¥{{ Number(currentOrder.shipping || 0).toFixed(2) }}</el-descriptions-item>
+        <el-descriptions :column="2" border title="金额信息">
+          <el-descriptions-item label="商品总额">¥{{ Number(currentOrder.totalAmount ?? 0).toFixed(2) }}</el-descriptions-item>
           <el-descriptions-item label="实付金额">
-            <span class="amount-lg">¥{{ Number(currentOrder.amount).toFixed(2) }}</span>
+            <span class="amount-lg">¥{{ Number(currentOrder.payAmount ?? 0).toFixed(2) }}</span>
           </el-descriptions-item>
         </el-descriptions>
 
-        <el-descriptions :column="1" border title="收货信息">
-          <el-descriptions-item label="收货人">{{ currentOrder.receiver || '张小明' }}</el-descriptions-item>
-          <el-descriptions-item label="联系电话">{{ currentOrder.receiverPhone || currentOrder.phone }}</el-descriptions-item>
-          <el-descriptions-item label="收货地址">{{ currentOrder.address || '北京市朝阳区建国路88号' }}</el-descriptions-item>
-          <el-descriptions-item label="订单备注">{{ currentOrder.remark || '无' }}</el-descriptions-item>
-        </el-descriptions>
-
         <div class="drawer-footer">
-          <el-button v-if="currentOrder.status === 0" type="warning" @click="cancelOrder(currentOrder)">取消订单</el-button>
-          <el-button v-if="currentOrder.status === 1" type="success" @click="finishOrder(currentOrder)">确认完成</el-button>
+          <el-button v-if="isUnpaid(currentOrder)" type="warning" @click="cancelOrder(currentOrder)">取消订单</el-button>
+          <el-button v-if="isPaid(currentOrder)" type="success" @click="finishOrder(currentOrder)">确认完成</el-button>
           <el-button type="primary" @click="drawerVisible = false">关闭</el-button>
         </div>
       </div>
@@ -169,89 +149,73 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getOrderList, getOrderDetail, cancelOrder as cancelOrderApi, updateOrderStatus } from '@/api/order'
 
 const loading = ref(false)
 const activeStatus = ref('')
 const placeholder = 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png'
 
-const searchForm = reactive({ orderNo: '', username: '', phone: '', dateRange: [] })
+const searchForm = reactive({ orderNo: '' })
 const page = reactive({ pageNum: 1, pageSize: 10, total: 0 })
 
-const goodsList = ['乳清蛋白粉 5磅', '肌酸粉 300g', '瑜伽垫 6mm', '专业跑步鞋', '哑铃套装 20kg', '蛋白棒 12支装', '筋膜枪', 'BCAA支链氨基酸']
-const userList = ['张小明', '李雷', '韩梅梅', '王芳', '刘强', '陈静', '杨洋', '赵磊']
-const phones = ['13812345678', '13923456789', '13634567890', '13745678901', '13556789012', '13667890123', '13878901234', '13989012345']
-
-const mockOrders = []
-for (let i = 1; i <= 68; i++) {
-  const d = new Date(2025, 7, ((i - 1) % 28) + 1, 9 + ((i * 3) % 10), (i * 7) % 60, (i * 11) % 60)
-  const p = d.getTime() + 10 * 60 * 1000
-  const status = i % 5
-  mockOrders.push({
-    id: i,
-    orderNo: 'GYM' + String(2025080000000 + i),
-    nickname: userList[i % userList.length],
-    avatar: '',
-    phone: phones[i % phones.length],
-    goodsName: goodsList[i % goodsList.length],
-    goodsCover: '',
-    quantity: 1 + (i % 3),
-    price: Number((49.9 + (i % 10) * 30).toFixed(2)),
-    amount: Number(((49.9 + (i % 10) * 30) * (1 + (i % 3))).toFixed(2)),
-    discount: Number((Math.random() * 30).toFixed(2)),
-    shipping: i % 4 === 0 ? 0 : 10,
-    payType: status === 0 ? null : (i % 3 + 1),
-    status,
-    createTime: formatDT(d),
-    payTime: status !== 0 ? formatDT(new Date(p)) : null,
-    remark: i % 7 === 0 ? '希望尽快发货' : ''
-  })
-}
-function formatDT(d) {
-  const p = (n) => String(n).padStart(2, '0')
-  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds())
-}
-
 const tableData = ref([])
-const counts = computed(() => ({
-  total: mockOrders.length,
-  pending: mockOrders.filter((o) => o.status === 0).length,
-  paid: mockOrders.filter((o) => o.status === 1).length,
-  done: mockOrders.filter((o) => o.status === 2).length,
-  canceled: mockOrders.filter((o) => o.status === 3).length
-}))
-
-function statusText(s) { return ['待支付', '已支付', '已完成', '已取消', '已退款'][s] || '-' }
-function statusType(s) { return ['warning', 'primary', 'success', 'info', 'danger'][s] || 'info' }
-function payTypeText(t) { return { 1: '微信支付', 2: '支付宝', 3: '银行卡' }[t] }
-function payTypeColor(t) { return { 1: 'success', 2: 'primary', 3: 'warning' }[t] }
-
-function loadData() {
-  loading.value = true
-  setTimeout(() => {
-    let list = mockOrders.filter((o) => {
-      if (activeStatus.value !== '' && String(o.status) !== activeStatus.value) return false
-      if (searchForm.orderNo && !o.orderNo.includes(searchForm.orderNo)) return false
-      if (searchForm.username && !o.nickname.includes(searchForm.username)) return false
-      if (searchForm.phone && !o.phone.includes(searchForm.phone)) return false
-      return true
-    })
-    page.total = list.length
-    const s = (page.pageNum - 1) * page.pageSize
-    tableData.value = list.slice(s, s + page.pageSize)
-    loading.value = false
-  }, 300)
-}
-function handleSearch() { page.pageNum = 1; loadData() }
-function handleReset() { Object.assign(searchForm, { orderNo: '', username: '', phone: '', dateRange: [] }); handleSearch() }
-function handleTabChange() { page.pageNum = 1; loadData() }
-
 const drawerVisible = ref(false)
 const currentOrder = ref(null)
-function openDetail(row) {
-  currentOrder.value = row
+const detailItems = ref([])
+
+const statusMap = {
+  UNPAID: { text: '待支付', type: 'warning' },
+  PAID: { text: '已支付', type: 'success' },
+  SHIPPED: { text: '已发货', type: 'primary' },
+  COMPLETED: { text: '已完成', type: 'success' },
+  CANCELLED: { text: '已取消', type: 'info' },
+  REFUNDED: { text: '已退款', type: 'danger' },
+  0: { text: '待支付', type: 'warning' },
+  1: { text: '已支付', type: 'success' },
+  2: { text: '已发货', type: 'primary' },
+  3: { text: '已完成', type: 'success' },
+  4: { text: '已取消', type: 'info' },
+  5: { text: '已退款', type: 'danger' }
+}
+function statusText(s) { return statusMap[s]?.text || String(s ?? '-') }
+function statusType(s) { return statusMap[s]?.type || 'info' }
+function isUnpaid(row) { return row.status === 'UNPAID' || row.status === 0 }
+function isPaid(row) { return row.status === 'PAID' || row.status === 1 }
+
+const payTypeMap = { BALANCE: '余额支付', ALIPAY: '支付宝', WECHAT: '微信支付', 1: '余额支付', 2: '支付宝', 3: '微信支付' }
+function payTypeText(t) { return payTypeMap[t] || '' }
+function payTypeColor(t) { return { BALANCE: 'success', ALIPAY: 'primary', WECHAT: 'warning', 1: 'success', 2: 'primary', 3: 'warning' }[t] || 'info' }
+
+async function loadData() {
+  loading.value = true
+  try {
+    const res = await getOrderList({
+      pageNum: page.pageNum,
+      pageSize: page.pageSize,
+      status: activeStatus.value !== '' ? activeStatus.value : undefined,
+      orderNo: searchForm.orderNo || undefined
+    })
+    tableData.value = res?.rows || []
+    page.total = Number(res?.total) || 0
+  } finally {
+    loading.value = false
+  }
+}
+function handleSearch() { page.pageNum = 1; loadData() }
+function handleReset() { Object.assign(searchForm, { orderNo: '' }); handleSearch() }
+function handleTabChange() { page.pageNum = 1; loadData() }
+
+async function openDetail(row) {
   drawerVisible.value = true
+  currentOrder.value = row
+  detailItems.value = []
+  try {
+    const res = await getOrderDetail(row.orderNo)
+    if (res?.order) currentOrder.value = { ...row, ...res.order }
+    detailItems.value = res?.items || []
+  } catch (e) {}
 }
 function copyNo() {
   navigator.clipboard?.writeText(currentOrder.value.orderNo)
@@ -259,12 +223,22 @@ function copyNo() {
 }
 function cancelOrder(row) {
   ElMessageBox.confirm(`确定取消订单「${row.orderNo}」吗？`, '提示', { type: 'warning' })
-    .then(() => { row.status = 3; ElMessage.success('订单已取消'); loadData() })
+    .then(async () => {
+      await cancelOrderApi(row.orderNo)
+      ElMessage.success('订单已取消')
+      drawerVisible.value = false
+      loadData()
+    })
     .catch(() => {})
 }
 function finishOrder(row) {
   ElMessageBox.confirm(`确认订单「${row.orderNo}」已完成吗？`, '提示', { type: 'success' })
-    .then(() => { row.status = 2; ElMessage.success('订单已完成'); loadData() })
+    .then(async () => {
+      await updateOrderStatus(row.orderNo, 3)
+      ElMessage.success('订单已完成')
+      drawerVisible.value = false
+      loadData()
+    })
     .catch(() => {})
 }
 
@@ -276,7 +250,6 @@ onMounted(loadData)
 .tabs-card :deep(.el-card__body) { padding: 12px 20px 0; }
 .order-tabs { margin-bottom: 16px; }
 .tab-label { display: inline-flex; align-items: center; gap: 4px; }
-.tab-badge { margin-left: 6px; }
 .search-form { display: flex; flex-wrap: wrap; gap: 4px; }
 .table-header { display: flex; justify-content: space-between; align-items: center; }
 .header-title { font-size: 15px; font-weight: 600; color: #303133; }

@@ -7,6 +7,7 @@ import com.gym.entity.user.User;
 import com.gym.user.dto.UserDTO;
 
 import java.math.BigDecimal;
+import java.util.Map;
 
 public interface UserService extends IService<User> {
 
@@ -31,4 +32,17 @@ public interface UserService extends IService<User> {
      * @return 成功返回true，余额不足抛出BizException
      */
     boolean deductBalance(Long userId, BigDecimal amount);
+
+    /**
+     * 增加用户余额（退款场景）
+     * @param userId 用户ID
+     * @param amount 增加金额
+     * @return 成功返回true
+     */
+    boolean addBalance(Long userId, BigDecimal amount);
+
+    /**
+     * 用户统计：总数、近30天增长趋势、角色分布
+     */
+    Map<String, Object> statistics();
 }

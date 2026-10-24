@@ -8,4 +8,7 @@ import com.gym.entity.course.Course;
 public interface CourseService extends IService<Course> {
 
     IPage<Course> listPage(Page<Course> page, String name, String category, Long coachId, Integer status);
+
+    /** 删除课程并级联删除其排期与报名 */
+    void deleteWithSchedules(Long id);
 }

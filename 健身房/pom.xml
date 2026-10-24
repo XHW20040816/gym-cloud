@@ -249,6 +249,13 @@
                 <version>3.1.8</version>
             </dependency>
 
+            <!-- Feign Core（显式声明版本，供 gym-framework 的 RequestInterceptor 使用） -->
+            <dependency>
+                <groupId>io.github.openfeign</groupId>
+                <artifactId>feign-core</artifactId>
+                <version>11.10</version>
+            </dependency>
+
             <!-- Security -->
             <dependency>
                 <groupId>org.springframework.boot</groupId>

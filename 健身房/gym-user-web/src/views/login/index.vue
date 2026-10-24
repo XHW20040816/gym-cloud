@@ -37,8 +37,8 @@
         </el-form>
 
         <div class="demo">
-          <span class="muted">演示账号：</span>
-          <el-button size="small" link type="primary" @click="fill('user1')">user1 / 123456</el-button>
+          <span class="muted">还没有账号？</span>
+          <el-button size="small" link type="primary" @click="goRegister">立即注册</el-button>
         </div>
       </div>
     </div>
@@ -57,17 +57,15 @@ const userStore = useUserStore()
 
 const formRef = ref(null)
 const loading = ref(false)
-const form = reactive({ username: 'user1', password: '123456' })
+const form = reactive({ username: '', password: '' })
 
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
-function fill(username) {
-  form.username = username
-  form.password = '123456'
-  submit()
+function goRegister() {
+  router.push('/register')
 }
 
 async function submit() {

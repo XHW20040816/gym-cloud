@@ -81,12 +81,6 @@
         </el-form>
         <div class="quick-login">
           <div class="quick-btns">
-            <el-button size="small" type="success" plain @click="quickLogin('admin', '123456')">
-              管理员登录
-            </el-button>
-            <el-button size="small" type="warning" plain @click="quickLogin('coach', '123456')">
-              教练登录
-            </el-button>
             <el-button size="small" type="info" plain @click="toUserLogin">
               用户登录
             </el-button>
@@ -145,12 +139,6 @@ async function handleLogin() {
       }
     }
   })
-}
-
-function quickLogin(username, password) {
-  loginForm.username = username
-  loginForm.password = password
-  handleLogin()
 }
 
 // 跳转到会员端登录页（gym-user-web，端口 5174）

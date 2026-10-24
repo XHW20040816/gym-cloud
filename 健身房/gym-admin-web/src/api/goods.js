@@ -41,30 +41,23 @@ export function deleteGoods(id) {
 
 export function updateGoodsStatus(id, status) {
   return request({
-    url: `/goods/${id}/status`,
+    url: '/goods/status',
     method: 'put',
-    params: { status }
+    params: { id, status }
   })
 }
 
 // 商品分类 API
 export function getCategoryList() {
   return request({
-    url: '/goods-category/list',
-    method: 'get'
-  })
-}
-
-export function getCategoryTree() {
-  return request({
-    url: '/goods-category/tree',
+    url: '/goods/category/list',
     method: 'get'
   })
 }
 
 export function createCategory(data) {
   return request({
-    url: '/goods-category',
+    url: '/goods/category',
     method: 'post',
     data
   })
@@ -72,7 +65,7 @@ export function createCategory(data) {
 
 export function updateCategory(data) {
   return request({
-    url: '/goods-category',
+    url: '/goods/category',
     method: 'put',
     data
   })
@@ -80,7 +73,7 @@ export function updateCategory(data) {
 
 export function deleteCategory(id) {
   return request({
-    url: `/goods-category/${id}`,
+    url: `/goods/category/${id}`,
     method: 'delete'
   })
 }

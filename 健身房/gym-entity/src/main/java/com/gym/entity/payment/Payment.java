@@ -24,6 +24,7 @@ public class Payment implements Serializable {
     public static final int STATUS_UNPAID = 0;
     public static final int STATUS_SUCCESS = 1;
     public static final int STATUS_FAIL = 2;
+    public static final int STATUS_REFUNDED = 3;
 
     @ApiModelProperty(value = "主键ID")
     @TableId(value = "id", type = IdType.ASSIGN_ID)

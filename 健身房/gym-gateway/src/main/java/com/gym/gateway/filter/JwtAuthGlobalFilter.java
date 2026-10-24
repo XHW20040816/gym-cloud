@@ -60,6 +60,11 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getURI().getPath();
 
+        // ① 拦截内部接口：/internal/ 仅供服务间 Feign 调用，不允许经网关访问
+        if (path != null && path.contains("/internal/")) {
+            return buildForbiddenResponse(exchange, "禁止访问内部接口");
+        }
+
         // ② 白名单匹配放行
         List<String> whiteList = authConfig.getWhiteList();
         if (whiteList != null) {

@@ -13,7 +13,6 @@ import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
@@ -29,10 +28,6 @@ import java.util.Map;
 public class PaymentController {
 
     private final PaymentService paymentService;
-    private final StringRedisTemplate stringRedisTemplate;
-
-    private static final String ALIPAY_PAY_KEY = "alipay:pay:";
-    private static final String WX_PAY_KEY = "wxpay:pay:";
 
     // ============== 公共支付接口 ==============
 
@@ -49,40 +44,7 @@ public class PaymentController {
         Map<String, Object> result = new HashMap<>(8);
         result.put("paymentNo", paymentNo);
         result.put("payType", dto.getPayType());
-
-        // 支付宝/微信返回预支付链接，余额支付没有 payLink
-        if (PayType.ALIPAY.getCode().equals(dto.getPayType())) {
-            String link = stringRedisTemplate.opsForValue().get(ALIPAY_PAY_KEY + dto.getOrderNo());
-            result.put("payLink", link);
-        } else if (PayType.WECHAT.getCode().equals(dto.getPayType())) {
-            String link = stringRedisTemplate.opsForValue().get(WX_PAY_KEY + dto.getOrderNo());
-            result.put("payLink", link);
-        } else {
-            result.put("payLink", null);
-        }
         return R.ok(result);
-    }
-
-    // ============== Mock 回调接口（内部模拟，不做验签） ==============
-
-    @ApiOperation("【Mock】支付宝支付回调")
-    @PostMapping("/callback/alipay")
-    public R<Void> alipayCallback(
-            @ApiParam("商户订单号(orderNo)") @RequestParam String outTradeNo,
-            @ApiParam("支付宝交易号") @RequestParam String tradeNo) {
-        log.info("【Mock】支付宝回调: outTradeNo={}, tradeNo={}", outTradeNo, tradeNo);
-        paymentService.mockCallback(outTradeNo, tradeNo, PayType.ALIPAY);
-        return R.ok();
-    }
-
-    @ApiOperation("【Mock】微信支付回调")
-    @PostMapping("/callback/wechat")
-    public R<Void> wechatCallback(
-            @ApiParam("商户订单号(orderNo)") @RequestParam String outTradeNo,
-            @ApiParam("微信支付单号") @RequestParam String transactionId) {
-        log.info("【Mock】微信回调: outTradeNo={}, transactionId={}", outTradeNo, transactionId);
-        paymentService.mockCallback(outTradeNo, transactionId, PayType.WECHAT);
-        return R.ok();
     }
 
     // ============== 用户接口 ==============
@@ -121,13 +83,15 @@ public class PaymentController {
             @ApiParam("每页大小") @RequestParam(defaultValue = "10") Integer pageSize,
             @ApiParam("用户ID(可选)") @RequestParam(required = false) Long userId,
             @ApiParam("订单号模糊(可选)") @RequestParam(required = false) String orderNo,
-            @ApiParam("状态 0未支付 1成功 2失败(可选)") @RequestParam(required = false) Integer status,
+            @ApiParam("流水号模糊(可选)") @RequestParam(required = false) String paymentNo,
+            @ApiParam("支付方式 1余额 2支付宝 3微信(可选)") @RequestParam(required = false) Integer payType,
+            @ApiParam("状态 0未支付 1成功 2失败 3已退款(可选)") @RequestParam(required = false) Integer status,
             HttpServletRequest request) {
         String role = request.getHeader("X-User-Role");
         if (!"ADMIN".equalsIgnoreCase(role)) {
             return R.fail(ResultCode.FORBIDDEN);
         }
-        PageResult<Payment> page = paymentService.adminPage(pageNum, pageSize, userId, orderNo, status);
+        PageResult<Payment> page = paymentService.adminPage(pageNum, pageSize, userId, orderNo, paymentNo, payType, status);
         return R.ok(page);
     }
 
@@ -149,6 +113,28 @@ public class PaymentController {
             }
         }
         return R.ok(list);
+    }
+
+    @ApiOperation("【ADMIN】支付退款")
+    @PostMapping("/{paymentNo}/refund")
+    public R<Void> refund(@ApiParam("支付流水号") @PathVariable String paymentNo,
+                          HttpServletRequest request) {
+        String role = request.getHeader("X-User-Role");
+        if (!"ADMIN".equalsIgnoreCase(role)) {
+            return R.fail(ResultCode.FORBIDDEN);
+        }
+        paymentService.refund(paymentNo);
+        return R.ok();
+    }
+
+    @ApiOperation("【ADMIN】支付统计")
+    @GetMapping("/statistics")
+    public R<Map<String, Object>> statistics(HttpServletRequest request) {
+        String role = request.getHeader("X-User-Role");
+        if (!"ADMIN".equalsIgnoreCase(role)) {
+            return R.fail(ResultCode.FORBIDDEN);
+        }
+        return R.ok(paymentService.statistics());
     }
 
     // ============== 测试用接口：Seata 回滚验证 ==============

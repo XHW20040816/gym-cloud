@@ -115,6 +115,12 @@ gym:
     refreshTokenExpireDays: 7
     accessTokenRedisPrefix: "gym:token:access:"
     refreshTokenRedisPrefix: "gym:token:refresh:"
+  # 服务间内部接口鉴权令牌（Feign 自动携带，internal 接口校验，防止绕过网关直连篡改）
+  internal:
+    token: "${INTERNAL_TOKEN:GymInternalToken2024}"
+  # 注册相关配置：管理员注册邀请码（仅 ADMIN 角色注册时必填）
+  register:
+    admin-invite-code: "${ADMIN_INVITE_CODE:GymAdmin2024}"
 
 # ========== Logging 公共配置 ==========
 logging:

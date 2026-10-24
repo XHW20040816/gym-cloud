@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gym.api.dto.PayDTO;
 import com.gym.api.order.OrderFeignClient;
+import com.gym.api.user.UserFeignClient;
 import com.gym.common.exception.BizException;
 import com.gym.common.result.PageResult;
 import com.gym.common.result.R;
@@ -15,6 +16,7 @@ import com.gym.entity.payment.Payment;
 import com.gym.payment.mapper.PaymentMapper;
 import com.gym.payment.strategy.PayStrategy;
 import com.gym.payment.strategy.PayStrategyFactory;
+import io.seata.spring.annotation.GlobalTransactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +24,14 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -37,6 +45,10 @@ public class PaymentService {
     @Lazy
     private OrderFeignClient orderFeignClient;
 
+    @Autowired
+    @Lazy
+    private UserFeignClient userFeignClient;
+
     /**
      * 统一支付入口
      */
@@ -47,46 +59,6 @@ public class PaymentService {
         PayType type = resolvePayType(dto.getPayType());
         PayStrategy strategy = payStrategyFactory.get(type);
         return strategy.pay(dto);
-    }
-
-    /**
-     * Mock 支付回调（支付宝/微信共用逻辑）
-     * @param outTradeNo 商户订单号（即 orderNo）
-     * @param transactionId 第三方流水号
-     * @param type 支付方式
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public void mockCallback(String outTradeNo, String transactionId, PayType type) {
-        // 1) 查询支付记录
-        Payment payment = paymentMapper.selectByOrderAndType(outTradeNo, type.getCode());
-        if (payment == null) {
-            throw new BizException(ResultCode.PAY_ERROR, "支付记录不存在");
-        }
-        // 2) 幂等：已成功则直接返回
-        if (Payment.STATUS_SUCCESS == payment.getStatus()) {
-            log.info("回调幂等：支付已成功，跳过 orderNo={}, type={}", outTradeNo, type);
-            return;
-        }
-        // 3) 只允许未支付状态 -> 成功
-        if (Payment.STATUS_UNPAID != payment.getStatus()) {
-            throw new BizException(ResultCode.PAY_ERROR, "支付记录状态错误");
-        }
-
-        // 4) 更新支付流水：状态成功 + 第三方流水号 + 支付时间
-        Payment update = new Payment();
-        update.setId(payment.getId());
-        update.setStatus(Payment.STATUS_SUCCESS);
-        update.setTransactionId(transactionId);
-        update.setPayTime(LocalDateTime.now());
-        paymentMapper.updateById(update);
-
-        // 5) 调用订单服务更新订单状态为 PAID
-        R<Void> r = orderFeignClient.updateOrderStatus(outTradeNo, OrderStatus.PAID.getCode());
-        if (r == null || r.getCode() != 200) {
-            throw new BizException(ResultCode.PAY_ERROR, "更新订单状态失败");
-        }
-
-        log.info("Mock回调支付成功: orderNo={}, type={}, transactionId={}", outTradeNo, type, transactionId);
     }
 
     /**
@@ -121,7 +93,8 @@ public class PaymentService {
      * 管理员全量分页
      */
     public PageResult<Payment> adminPage(Integer pageNum, Integer pageSize,
-                                         Long userId, String orderNo, Integer status) {
+                                         Long userId, String orderNo, String paymentNo,
+                                         Integer payType, Integer status) {
         int pn = (pageNum == null || pageNum < 1) ? 1 : pageNum;
         int ps = (pageSize == null || pageSize < 1 || pageSize > 100) ? 10 : pageSize;
 
@@ -131,6 +104,12 @@ public class PaymentService {
         }
         if (orderNo != null && !orderNo.trim().isEmpty()) {
             wrapper.like(Payment::getOrderNo, orderNo.trim());
+        }
+        if (paymentNo != null && !paymentNo.trim().isEmpty()) {
+            wrapper.like(Payment::getPaymentNo, paymentNo.trim());
+        }
+        if (payType != null) {
+            wrapper.eq(Payment::getPayType, resolvePayType(payType));
         }
         if (status != null) {
             wrapper.eq(Payment::getStatus, status);
@@ -160,6 +139,90 @@ public class PaymentService {
             throw new BizException(ResultCode.FORBIDDEN);
         }
         return pay;
+    }
+
+    /**
+     * 管理员退款：仅支付成功的记录可退，退款后同步订单状态为已退款；
+     * 余额支付同时退还用户余额（跨库，Seata 全局事务保证一致）
+     */
+    @GlobalTransactional(rollbackFor = Exception.class, name = "payment-refund-tx")
+    @Transactional(rollbackFor = Exception.class)
+    public void refund(String paymentNo) {
+        if (paymentNo == null || paymentNo.trim().isEmpty()) {
+            throw new BizException(ResultCode.PARAM_ERROR);
+        }
+        LambdaQueryWrapper<Payment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Payment::getPaymentNo, paymentNo.trim());
+        Payment pay = paymentMapper.selectOne(wrapper);
+        if (pay == null) {
+            throw new BizException(ResultCode.NOT_FOUND, "支付记录不存在");
+        }
+        if (pay.getStatus() == null || pay.getStatus() != Payment.STATUS_SUCCESS) {
+            throw new BizException(ResultCode.PAY_ERROR, "仅支付成功的记录可退款");
+        }
+
+        // ① 余额支付：先退还余额（跨库，Seata 全局事务保证一致）
+        if (PayType.BALANCE.equals(pay.getPayType())) {
+            R<Void> r1 = userFeignClient.addBalance(pay.getUserId(), pay.getAmount());
+            if (r1 == null || r1.getCode() != 200) {
+                String msg = (r1 != null && r1.getMsg() != null) ? r1.getMsg() : "退还余额失败";
+                throw new BizException(ResultCode.PAY_ERROR, msg);
+            }
+        }
+
+        // ② 更新流水状态为已退款
+        Payment update = new Payment();
+        update.setId(pay.getId());
+        update.setStatus(Payment.STATUS_REFUNDED);
+        paymentMapper.updateById(update);
+
+        // ③ 订单状态改为已退款
+        R<Void> r = orderFeignClient.updateOrderStatus(pay.getOrderNo(), OrderStatus.REFUNDED.getCode());
+        if (r == null || r.getCode() != 200) {
+            throw new BizException(ResultCode.PAY_ERROR, "更新订单状态失败");
+        }
+        log.info("退款成功 paymentNo={}, orderNo={}", pay.getPaymentNo(), pay.getOrderNo());
+    }
+
+    /**
+     * 支付统计：总量、笔数、退款、成功率与近30天按日趋势
+     */
+    public Map<String, Object> statistics() {
+        BigDecimal totalAmount = paymentMapper.sumSuccessAmount();
+        long successCount = paymentMapper.countSuccess();
+        BigDecimal refundAmount = paymentMapper.sumRefundAmount();
+        long failCount = paymentMapper.countFail();
+        long total = successCount + failCount;
+        double successRate = total == 0 ? 0 : Math.round(successCount * 1000.0 / total) / 10.0;
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("totalAmount", totalAmount == null ? BigDecimal.ZERO : totalAmount);
+        data.put("totalCount", successCount);
+        data.put("refundAmount", refundAmount == null ? BigDecimal.ZERO : refundAmount);
+        data.put("successRate", successRate);
+
+        LocalDateTime start = LocalDateTime.now().minusDays(29).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        List<Map<String, Object>> rows = paymentMapper.sumAmountGroupByDay(
+                start.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        Map<String, BigDecimal> dayMap = new HashMap<>();
+        for (Map<String, Object> row : rows) {
+            Object d = row.get("d");
+            Object amt = row.get("amt");
+            if (d != null) {
+                dayMap.put(String.valueOf(d), amt == null ? BigDecimal.ZERO : new BigDecimal(String.valueOf(amt)));
+            }
+        }
+        List<Map<String, Object>> trend = new ArrayList<>();
+        for (int i = 0; i < 30; i++) {
+            LocalDateTime day = start.plusDays(i);
+            String key = day.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            Map<String, Object> point = new LinkedHashMap<>();
+            point.put("date", day.format(DateTimeFormatter.ofPattern("MM-dd")));
+            point.put("amount", dayMap.getOrDefault(key, BigDecimal.ZERO));
+            trend.add(point);
+        }
+        data.put("trend", trend);
+        return data;
     }
 
     /**

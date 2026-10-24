@@ -38,11 +38,11 @@ export function deleteUser(id) {
   })
 }
 
-export function updateUserStatus(id, status) {
+export function updateUserStatus(userId, status) {
   return request({
-    url: `/user/${id}/status`,
+    url: '/user/status',
     method: 'put',
-    params: { status }
+    params: { userId, status }
   })
 }
 
@@ -50,5 +50,12 @@ export function resetPassword(id) {
   return request({
     url: `/user/${id}/reset-password`,
     method: 'put'
+  })
+}
+
+export function getUserStatistics() {
+  return request({
+    url: '/user/statistics',
+    method: 'get'
   })
 }

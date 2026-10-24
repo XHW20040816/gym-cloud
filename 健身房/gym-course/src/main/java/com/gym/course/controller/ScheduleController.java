@@ -1,5 +1,6 @@
 package com.gym.course.controller;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gym.common.result.PageResult;
@@ -7,6 +8,7 @@ import com.gym.common.result.R;
 import com.gym.common.result.ResultCode;
 import com.gym.course.service.CourseEnrollmentService;
 import com.gym.course.service.CourseScheduleService;
+import com.gym.entity.course.CourseEnrollment;
 import com.gym.entity.course.CourseSchedule;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -80,6 +82,10 @@ public class ScheduleController {
         if (!"ADMIN".equals(role)) {
             return R.fail(ResultCode.FORBIDDEN);
         }
+        // ① 先级联删除该排期下的报名记录，避免孤儿数据
+        enrollmentService.remove(
+                new LambdaQueryWrapper<CourseEnrollment>().eq(CourseEnrollment::getScheduleId, id));
+        // ② 再删除排期
         scheduleService.removeById(id);
         return R.ok();
     }

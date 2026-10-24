@@ -129,7 +129,7 @@ async function load() {
   try {
     const page = await getMyOrders({ pageNum: pageNum.value, pageSize })
     orders.value = page?.rows || []
-    total.value = page?.total || 0
+    total.value = Number(page?.total) || 0
   } finally {
     loading.value = false
   }

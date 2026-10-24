@@ -8,70 +8,23 @@ export function getOrderList(params) {
   })
 }
 
-export function getOrderById(id) {
+export function getOrderDetail(orderNo) {
   return request({
-    url: `/order/${id}`,
+    url: `/order/${orderNo}`,
     method: 'get'
   })
 }
 
-export function cancelOrder(id) {
+export function cancelOrder(orderNo) {
   return request({
-    url: `/order/${id}/cancel`,
-    method: 'put'
+    url: `/order/${orderNo}/cancel`,
+    method: 'post'
   })
 }
 
-export function updateOrderStatus(id, status) {
+export function updateOrderStatus(orderNo, status) {
   return request({
-    url: `/order/${id}/status`,
-    method: 'put',
-    params: { status }
-  })
-}
-
-// 秒杀活动 API
-export function getSeckillActivityList(params) {
-  return request({
-    url: '/seckill-activity/page',
-    method: 'get',
-    params
-  })
-}
-
-export function getSeckillActivityById(id) {
-  return request({
-    url: `/seckill-activity/${id}`,
-    method: 'get'
-  })
-}
-
-export function createSeckillActivity(data) {
-  return request({
-    url: '/seckill-activity',
-    method: 'post',
-    data
-  })
-}
-
-export function updateSeckillActivity(data) {
-  return request({
-    url: '/seckill-activity',
-    method: 'put',
-    data
-  })
-}
-
-export function deleteSeckillActivity(id) {
-  return request({
-    url: `/seckill-activity/${id}`,
-    method: 'delete'
-  })
-}
-
-export function updateSeckillStatus(id, status) {
-  return request({
-    url: `/seckill-activity/${id}/status`,
+    url: `/order/${orderNo}/status`,
     method: 'put',
     params: { status }
   })

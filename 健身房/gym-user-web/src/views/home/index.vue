@@ -114,7 +114,7 @@ async function load() {
       getCoursePage({ pageNum: 1, pageSize: 4, status: 1 })
     ])
     goodsList.value = goodsPage?.rows || []
-    goodsTotal.value = goodsPage?.total || 0
+    goodsTotal.value = Number(goodsPage?.total) || 0
     activities.value = activityList || []
     courses.value = coursePage?.rows || []
   } finally {

@@ -164,10 +164,21 @@ public class OrdersServiceImpl extends ServiceImpl<OrdersMapper, Orders> impleme
         LambdaQueryWrapper<Orders> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Orders::getUserId, userId);
         if (status != null) {
-            wrapper.eq(Orders::getStatus, status);
+            OrderStatus orderStatus = resolveStatus(status);
+            if (orderStatus != null) {
+                wrapper.eq(Orders::getStatus, orderStatus);
+            }
         }
         wrapper.orderByDesc(Orders::getCreateTime);
         return page(page, wrapper);
+    }
+
+    private OrderStatus resolveStatus(Integer code) {
+        if (code == null) return null;
+        for (OrderStatus s : OrderStatus.values()) {
+            if (s.getCode().equals(code)) return s;
+        }
+        return null;
     }
 
     @Override

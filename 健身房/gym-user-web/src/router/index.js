@@ -9,6 +9,12 @@ const routes = [
     meta: { title: '登录' }
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@/views/register/index.vue'),
+    meta: { title: '注册' }
+  },
+  {
     path: '/',
     component: Layout,
     redirect: '/home',
@@ -87,7 +93,7 @@ router.beforeEach(async (to, from, next) => {
   const userStore = useUserStore()
 
   if (!userStore.token) {
-    if (to.path === '/login') {
+    if (to.path === '/login' || to.path === '/register') {
       next()
     } else {
       next(`/login?redirect=${encodeURIComponent(to.fullPath)}`)
@@ -95,7 +101,7 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  if (to.path === '/login') {
+  if (to.path === '/login' || to.path === '/register') {
     next('/home')
     return
   }

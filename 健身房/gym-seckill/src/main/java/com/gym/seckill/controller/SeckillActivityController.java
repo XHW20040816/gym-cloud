@@ -33,10 +33,11 @@ public class SeckillActivityController {
             @ApiParam("页码") @RequestParam(defaultValue = "1") Integer pageNum,
             @ApiParam("每页大小") @RequestParam(defaultValue = "10") Integer pageSize,
             @ApiParam("状态：0未开始 1进行中 2已结束") @RequestParam(required = false) Integer status,
+            @ApiParam("活动名称模糊") @RequestParam(required = false) String name,
             HttpServletRequest request) {
         if (!isAdmin(request)) return R.fail(ResultCode.FORBIDDEN);
         Page<SeckillActivity> page = new Page<>(pageNum, pageSize);
-        IPage<SeckillActivity> result = seckillActivityService.listPage(page, status);
+        IPage<SeckillActivity> result = seckillActivityService.listPage(page, status, name);
         return R.ok(PageResult.of(result.getRecords(), result.getTotal()));
     }
 
@@ -67,7 +68,20 @@ public class SeckillActivityController {
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable Long id, HttpServletRequest request) {
         if (!isAdmin(request)) return R.fail(ResultCode.FORBIDDEN);
-        seckillActivityService.removeById(id);
+        seckillActivityService.deleteWithGoods(id);
+        return R.ok();
+    }
+
+    @ApiOperation("修改活动状态：0未开始 1进行中 2已结束")
+    @PutMapping("/{id}/status")
+    public R<Void> updateStatus(@PathVariable Long id,
+                                @RequestParam Integer status,
+                                HttpServletRequest request) {
+        if (!isAdmin(request)) return R.fail(ResultCode.FORBIDDEN);
+        SeckillActivity activity = new SeckillActivity();
+        activity.setId(id);
+        activity.setStatus(status);
+        seckillActivityService.updateById(activity);
         return R.ok();
     }
 }

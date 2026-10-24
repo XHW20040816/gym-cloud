@@ -72,7 +72,23 @@ public class CourseController {
         if (!"ADMIN".equals(role)) {
             return R.fail(ResultCode.FORBIDDEN);
         }
-        courseService.removeById(id);
+        courseService.deleteWithSchedules(id);
+        return R.ok();
+    }
+
+    @ApiOperation("课程上下架（ADMIN）")
+    @PutMapping("/{id}/status")
+    public R<Void> updateStatus(@ApiParam("课程ID") @PathVariable Long id,
+                                @ApiParam("状态：1启用 0禁用") @RequestParam Integer status,
+                                HttpServletRequest request) {
+        String role = request.getHeader("X-User-Role");
+        if (!"ADMIN".equals(role)) {
+            return R.fail(ResultCode.FORBIDDEN);
+        }
+        Course course = new Course();
+        course.setId(id);
+        course.setStatus(status);
+        courseService.updateById(course);
         return R.ok();
     }
 }

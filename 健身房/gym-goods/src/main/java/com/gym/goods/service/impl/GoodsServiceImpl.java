@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.gym.api.seckill.SeckillFeignClient;
 import com.gym.common.constant.MQConstants;
 import com.gym.common.exception.BizException;
 import com.gym.common.result.ResultCode;
@@ -12,6 +13,7 @@ import com.gym.entity.goods.Goods;
 import com.gym.goods.mapper.GoodsMapper;
 import com.gym.goods.message.GoodsSyncMessage;
 import com.gym.goods.service.GoodsService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 
+@Slf4j
 @Service
 public class GoodsServiceImpl extends ServiceImpl<GoodsMapper, Goods> implements GoodsService {
 
@@ -27,6 +30,9 @@ public class GoodsServiceImpl extends ServiceImpl<GoodsMapper, Goods> implements
 
     @Resource
     private RabbitTemplate rabbitTemplate;
+
+    @Resource
+    private SeckillFeignClient seckillFeignClient;
 
     /** 乐观锁最大重试次数 */
     private static final int MAX_RETRY = 3;
@@ -72,6 +78,12 @@ public class GoodsServiceImpl extends ServiceImpl<GoodsMapper, Goods> implements
         if (result) {
             GoodsSyncMessage msg = new GoodsSyncMessage(id, "D");
             rabbitTemplate.convertAndSend(MQConstants.GOODS_EXCHANGE, "", JSON.toJSONString(msg));
+            // 级联清理秒杀服务中引用该商品的秒杀商品（失败不阻塞商品删除）
+            try {
+                seckillFeignClient.deleteGoodsByGoodsId(id);
+            } catch (Exception e) {
+                log.warn("级联删除秒杀商品失败 goodsId={}", id, e);
+            }
         }
         return result;
     }
@@ -106,26 +118,10 @@ public class GoodsServiceImpl extends ServiceImpl<GoodsMapper, Goods> implements
     }
 
     /**
-     * 获取版本号：如果Goods实体未定义version字段，这里通过自定义SQL查询
+     * 获取版本号：实体已声明 @Version 字段，直接返回
      */
     private Integer getVersion(Goods goods) {
-        try {
-            java.lang.reflect.Field f = goods.getClass().getDeclaredField("version");
-            f.setAccessible(true);
-            Object val = f.get(goods);
-            if (val != null) {
-                return (Integer) val;
-            }
-        } catch (Exception ignored) {
-        }
-        // fallback: 直接查库取 version
-        java.util.Map<String, Object> map = goodsMapper.selectMaps(
-                new com.baomidou.mybatisplus.core.conditions.query.QueryWrapper<Goods>()
-                        .select("version").eq("id", goods.getId())).stream().findFirst().orElse(null);
-        if (map != null && map.get("version") != null) {
-            return ((Number) map.get("version")).intValue();
-        }
-        return 0;
+        return goods.getVersion();
     }
 
     @Override
