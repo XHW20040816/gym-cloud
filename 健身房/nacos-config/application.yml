@@ -36,8 +36,8 @@ spring:
   rabbitmq:
     host: 127.0.0.1
     port: 5672
-    username: guest
-    password: guest
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
     virtual-host: /
     publisher-confirm-type: correlated
     publisher-returns: true
@@ -79,16 +79,16 @@ seata:
       namespace: ""
       group: SEATA_GROUP
       application: seata-server
-      username: nacos
-      password: nacos
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
   config:
     type: nacos
     nacos:
       server-addr: 127.0.0.1:8848
       namespace: ""
       group: SEATA_GROUP
-      username: nacos
-      password: nacos
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
   service:
     vgroup-mapping:
       default_tx_group: default
@@ -108,7 +108,7 @@ springdoc:
 # ========== JWT 公共配置 ==========
 gym:
   jwt:
-    secret: "GymSecretKeyForJwtSigningMustBeAtLeast256BitsLongxxxxxxxxxxxxxxxxxxxx"
+    secret: "${JWT_SECRET:GymSecretKeyForJwtSigningMustBeAtLeast256BitsLongxxxxxxxxxxxxxxxxxxxx}"
     tokenPrefix: "Bearer "
     header: Authorization
     accessTokenExpireMinutes: 120

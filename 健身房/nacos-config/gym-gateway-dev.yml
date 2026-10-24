@@ -148,14 +148,14 @@ spring:
         server-addr: 127.0.0.1:8848
         namespace: ""
         group: DEFAULT_GROUP
-        username: nacos
-        password: nacos
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
         heart-beat-interval: 5000
 
 # ========== 网关 JWT 认证白名单（AuthConfig 前缀 gym.auth） ==========
 gym:
   jwt:
-    secret: "GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    secret: "${JWT_SECRET:GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx}"
   auth:
     white-list:
       - /api/auth/login

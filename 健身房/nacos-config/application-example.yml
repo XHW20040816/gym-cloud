@@ -1,0 +1,35 @@
+# ============================================================
+# 敏感配置模板（示例文件，不导入 Nacos）
+#
+# 说明：
+#   1. nacos-config 下 13 个真正导入 Nacos 的 yml，敏感字段已改为
+#      ${环境变量:默认值} 形式，值由运行服务的 JVM 进程从环境变量读取。
+#   2. 不设置环境变量时使用默认值（与改造前完全一致），开箱即可运行。
+#   3. 部署到真实环境时通过环境变量注入真实值，仓库中不再出现明文口令。
+#      变量在「运行服务的进程」上生效，不是 Nacos 服务端：
+#        - 命令行：set MYSQL_PASSWORD=xxx && java -jar gym-user.jar
+#        - IDEA：Run → Edit Configurations → Environment variables
+#   4. 本文件只是清单与说明，dataId 不是 application.yml，任何服务都不会加载它。
+# ============================================================
+
+# ---------- 数据库（各服务 spring.datasource） ----------
+MYSQL_USERNAME: root
+MYSQL_PASSWORD: root
+
+# ---------- Nacos（Seata 注册/配置、网关服务发现） ----------
+NACOS_USERNAME: nacos
+NACOS_PASSWORD: nacos
+
+# ---------- RabbitMQ（公共配置 spring.rabbitmq） ----------
+RABBITMQ_USERNAME: guest
+RABBITMQ_PASSWORD: guest
+
+# ---------- JWT 签名密钥（网关、auth 及各服务） ----------
+# 生产环境务必替换为 >=256 bit 的随机串，例如：openssl rand -base64 48
+JWT_SECRET: GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# ---------- docker compose（中间件容器自身） ----------
+# 在 健身房 目录执行 docker compose 时，系统环境变量或同目录 .env 文件的同名变量优先
+MYSQL_ROOT_PASSWORD: root
+RABBITMQ_DEFAULT_USER: guest
+RABBITMQ_DEFAULT_PASS: guest

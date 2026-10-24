@@ -96,6 +96,34 @@ spring:
 
 所有服务统一使用 `seata.tx-service-group: default_tx_group`（公共配置提供，各服务不再单独声明）。
 
+### 4.3 敏感配置：环境变量占位符
+
+数据库口令、Nacos 口令、RabbitMQ 口令与 JWT 密钥在 13 个 yml 中统一写成 `${环境变量:默认值}`，例如：
+
+```yaml
+spring:
+  datasource:
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:root}
+gym:
+  jwt:
+    secret: "${JWT_SECRET:默认密钥}"
+```
+
+- **默认值保留原配置**，不设环境变量时行为与改造前完全一致，零配置可跑。
+- **需要换掉默认值时**，在运行服务的进程上注入环境变量即可（不是改 Nacos 服务端），
+  例如 IDEA 的 Run Configuration → Environment variables，或命令行
+  `set MYSQL_PASSWORD=xxx && java -jar gym-user.jar`。
+- 完整变量清单见 `nacos-config/application-example.yml`（模板说明文件，不导入 Nacos）。
+
+| 变量 | 作用范围 | 默认值 |
+| :--- | :--- | :--- |
+| `MYSQL_USERNAME` / `MYSQL_PASSWORD` | 各服务数据源 | `root` / `root` |
+| `NACOS_USERNAME` / `NACOS_PASSWORD` | Seata 注册与配置、网关服务发现 | `nacos` / `nacos` |
+| `RABBITMQ_USERNAME` / `RABBITMQ_PASSWORD` | 公共配置的 RabbitMQ | `guest` / `guest` |
+| `JWT_SECRET` | 网关、auth 及各服务的签名密钥 | 内置演示密钥 |
+| `MYSQL_ROOT_PASSWORD` / `RABBITMQ_DEFAULT_*` | docker compose 容器 | `root` / `guest` |
+
 ***
 
 ## 5. 环境准备
