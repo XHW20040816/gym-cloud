@@ -1,0 +1,79 @@
+# ============================================================
+# Nacos 配置：gym-seckill 服务（DEFAULT_GROUP / dataId=gym-seckill-dev.yml）
+# 功能：秒杀活动管理 / 库存预热 / 高并发秒杀下单 / 超时回滚
+# ============================================================
+server:
+  port: 8089
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  application:
+    name: gym-seckill
+  profiles:
+    active: dev
+
+# ========== MyBatis Plus 配置 ==========
+  cloud:
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858
+        port: 8727
+# ========== Feign 配置 ==========
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/gym_seckill?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 30
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      validation-query: SELECT 1
+      test-while-idle: true
+
+# ========== 秒杀核心配置 ==========
+# Redis key 前缀统一由 gym-common 的 RedisConstants 定义（seckill:stock: / seckill:user: / seckill:soldout:），
+# RabbitMQ 交换机/队列名统一由 MQConstants 定义；秒杀订单超时时间由队列级 x-message-ttl 单一决定。
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gym.entity.seckill
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# Seata 事务分组统一由公共配置 application.yml 提供（default_tx_group -> default）
+
+# ========== Sentinel 限流 ==========
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 15000
+  httpclient:
+    enabled: true
+
+# ========== 日志级别 ==========
+logging:
+  level:
+    com.gym.seckill.mapper: DEBUG
+    com.gym.seckill.service: DEBUG
+    com.gym.seckill.mq: DEBUG
+
+# ========== JWT（JwtUtil 使用） ==========
+jwt:
+  secret: "GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  expire: 7200

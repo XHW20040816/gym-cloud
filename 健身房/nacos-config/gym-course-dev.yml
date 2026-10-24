@@ -1,0 +1,101 @@
+# ============================================================
+# Nacos 配置：gym-course 服务（DEFAULT_GROUP / dataId=gym-course-dev.yml）
+# 功能：课程管理 / 排期（Schedule）/ 预约（Enrollment）/ 容量控制核心
+# ============================================================
+server:
+  port: 8087
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  application:
+    name: gym-course
+  profiles:
+    active: dev
+
+# ========== MyBatis Plus 配置 ==========
+  cloud:
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858
+        port: 8725
+# ========== Feign 配置 ==========
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/gym_course?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 25
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      validation-query: SELECT 1
+      test-while-idle: true
+
+# ========== 课程预约容量控制配置 ==========
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gym.entity.course
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# ========== 数据源：gym_course 库 ==========
+gym:
+  course:
+    enroll:
+      # 预约容量控制 Redis 键
+      capacity-prefix: "gym:course:capacity:"
+      # 已预约用户集合（防止重复预约）
+      enroll-set-prefix: "gym:course:enroll:set:"
+      # 分布式锁前缀（排期级别）
+      lock-prefix: "gym:course:enroll:lock:"
+      lock-wait-seconds: 5
+      lock-lease-seconds: 10
+      # 预约数据缓存
+      cache:
+        schedule-prefix: "gym:course:schedule:"
+        course-prefix: "gym:course:detail:"
+        expire-hours: 12
+    # 取消预约提前多少小时（默认 24 小时前免费取消）
+    cancel:
+      deadline-hours: 24
+    # 课程提醒（提前多少分钟 MQ 通知）
+    reminder:
+      minutes-before: 30
+      enabled: true
+
+# Seata 事务分组统一由公共配置 application.yml 提供（default_tx_group -> default）
+
+# ========== Sentinel 限流 ==========
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+  httpclient:
+    enabled: true
+
+# ========== 日志级别 ==========
+logging:
+  level:
+    com.gym.course.mapper: DEBUG
+    com.gym.course.service: DEBUG
+
+# ========== JWT（JwtUtil 使用） ==========
+jwt:
+  secret: "GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  expire: 7200

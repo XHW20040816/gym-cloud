@@ -1,0 +1,46 @@
+# ---------- Java / Maven ----------
+target/
+*.class
+*.jar
+!**/maven-wrapper.jar
+*.war
+.mvn/wrapper/maven-wrapper.jar
+
+# ---------- 前端 ----------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---------- IDE / 编辑器 ----------
+.idea/
+.vscode/
+.trae/
+*.iml
+*.iws
+*.ipr
+*.swp
+*.swo
+
+# ---------- 中间件本地数据卷（体积大，含数据库文件，不入库） ----------
+健身房/docker/
+
+# ---------- 日志与临时文件 ----------
+*.log
+logs/
+*.tmp
+*.bak
+
+# ---------- 系统文件 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- 压缩包 ----------
+*.zip
+*.7z
+*.rar

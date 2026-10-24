@@ -1,0 +1,106 @@
+# ============================================================
+# Nacos 配置：gym-order 服务（DEFAULT_GROUP / dataId=gym-order-dev.yml）
+# 功能：订单创建 / 取消 / 查询 / 超时 TTL 死信队列
+# ============================================================
+server:
+  port: 8088
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  application:
+    name: gym-order
+  profiles:
+    active: dev
+
+# ========== MyBatis Plus 配置 ==========
+  cloud:
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858
+        port: 8726
+# ========== Feign 配置（调用 goods / member） ==========
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/gym_order?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 30
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      validation-query: SELECT 1
+      test-while-idle: true
+
+# ========== 订单服务特有配置 ==========
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gym.entity.order
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# ========== 数据源：gym_order 库 ==========
+gym:
+  order:
+    # 订单号雪花算法工作ID
+    snowflake:
+      worker-id: 1
+      datacenter-id: 1
+    # 订单超时未支付自动取消时间（分钟）
+    timeout:
+      unpaid-minutes: 30
+    # RabbitMQ TTL 死信队列
+    mq:
+      order-exchange: order.exchange.direct
+      order-queue: order.queue.normal
+      order-routing-key: order.create
+      # TTL 延迟队列（消息过期时间=30min）
+      ttl-exchange: order.exchange.ttl.direct
+      ttl-queue: order.queue.ttl
+      ttl-routing-key: order.ttl
+      # 死信交换器
+      dlx-exchange: order.exchange.dlx.direct
+      dlx-queue: order.queue.dlx
+      dlx-routing-key: order.timeout
+    # 订单缓存
+    cache:
+      order-prefix: "gym:order:detail:"
+      order-list-prefix: "gym:order:list:"
+      expire-minutes: 30
+
+# Seata 事务分组统一由公共配置 application.yml 提供（default_tx_group -> default）
+
+# ========== Sentinel 限流 ==========
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 15000
+  httpclient:
+    enabled: true
+
+# ========== 日志级别 ==========
+logging:
+  level:
+    com.gym.order.mapper: DEBUG
+    com.gym.order.service: DEBUG
+    com.gym.order.mq: DEBUG
+
+# ========== JWT（JwtUtil 使用） ==========
+jwt:
+  secret: "GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  expire: 7200

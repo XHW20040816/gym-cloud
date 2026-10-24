@@ -1,0 +1,138 @@
+# ============================================================
+# Nacos 共享配置（DEFAULT_GROUP / dataId=application.yml）
+# 各服务 bootstrap.yml 通过 shared-configs 加载本文件。
+# 只存放真正的公共配置：Redis / RabbitMQ / Sentinel / Seata / JWT / Jackson / 日志。
+# 服务名、端口、数据源等各自专属配置一律放在 {service}-dev.yml 中。
+# ============================================================
+
+spring:
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: false
+  mvc:
+    throw-exception-if-no-handler-found: true
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+  # ========== Redis 公共配置 ==========
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    password:
+    database: 0
+    timeout: 5000ms
+    lettuce:
+      pool:
+        max-active: 32
+        max-idle: 16
+        min-idle: 8
+        max-wait: 5000ms
+      shutdown-timeout: 3000ms
+
+  # ========== RabbitMQ 公共配置 ==========
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 10
+        concurrency: 4
+        max-concurrency: 16
+        retry:
+          enabled: true
+          initial-interval: 1000ms
+          multiplier: 2
+          max-attempts: 3
+    template:
+      retry:
+        enabled: true
+        initial-interval: 1000ms
+        multiplier: 2
+        max-attempts: 3
+
+    # 网关流控规则由 gym-gateway-dev.yml 的 gw-flow 数据源单独加载（sentinel-gateway-flow-rules.json）
+    # 普通服务的流控规则可通过 Sentinel Dashboard 动态下发，这里不再配置指向不存在文件的数据源
+
+# ========== Sentinel 公共配置 ==========
+feign:
+  sentinel:
+    enabled: true
+seata:
+  enabled: true
+  application-id: ${spring.application.name}
+  tx-service-group: default_tx_group
+  enable-auto-data-source-proxy: true
+  use-jdk-proxy: false
+  registry:
+    type: nacos
+    nacos:
+      server-addr: 127.0.0.1:8848
+      namespace: ""
+      group: SEATA_GROUP
+      application: seata-server
+      username: nacos
+      password: nacos
+  config:
+    type: nacos
+    nacos:
+      server-addr: 127.0.0.1:8848
+      namespace: ""
+      group: SEATA_GROUP
+      username: nacos
+      password: nacos
+  service:
+    vgroup-mapping:
+      default_tx_group: default
+    grouplist:
+      default: 127.0.0.1:8091
+
+# ========== Sentinel 公共配置 ==========
+sentinel:
+  transport:
+    dashboard: 127.0.0.1:8858
+  eager: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+
+# ========== JWT 公共配置 ==========
+gym:
+  jwt:
+    secret: "GymSecretKeyForJwtSigningMustBeAtLeast256BitsLongxxxxxxxxxxxxxxxxxxxx"
+    tokenPrefix: "Bearer "
+    header: Authorization
+    accessTokenExpireMinutes: 120
+    refreshTokenExpireDays: 7
+    accessTokenRedisPrefix: "gym:token:access:"
+    refreshTokenRedisPrefix: "gym:token:refresh:"
+
+# ========== Logging 公共配置 ==========
+logging:
+  level:
+    root: INFO
+    com.gym: DEBUG
+    org.springframework.web: INFO
+    com.alibaba.nacos: WARN
+    io.seata: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# ========== 线程池公共配置 ==========
+thread:
+  pool:
+    core-size: 8
+    max-size: 32
+    keep-alive-seconds: 60
+    queue-capacity: 1000
+    thread-name-prefix: "gym-async-"

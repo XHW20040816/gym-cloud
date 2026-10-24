@@ -1,0 +1,96 @@
+# ============================================================
+# Nacos 配置：gym-food 服务（DEFAULT_GROUP / dataId=gym-food-dev.yml）
+# 功能：餐饮菜单管理 / 营养餐搭配 / 营养信息查询
+# ============================================================
+server:
+  port: 8084
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  application:
+    name: gym-food
+  profiles:
+    active: dev
+
+# ========== MyBatis Plus 配置 ==========
+  cloud:
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858
+        port: 8722
+# ========== Feign 配置 ==========
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/gym_food?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 25
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      validation-query: SELECT 1
+      test-while-idle: true
+
+# ========== 餐饮服务特有配置 ==========
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gym.entity.food
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# ========== 数据源：gym_food 库 ==========
+gym:
+  food:
+    # 餐饮分类
+    category:
+      breakfast: 1
+      lunch: 2
+      dinner: 3
+      snack: 4
+    # 营养餐推荐缓存
+    recommend:
+      cache-prefix: "gym:food:recommend:"
+      expire-hours: 12
+    # 营养目标（默认用户每日）
+    nutrition:
+      default-calories: 2000
+      default-protein: 120
+      default-carb: 250
+      default-fat: 60
+
+# Seata 事务分组统一由公共配置 application.yml 提供（default_tx_group -> default）
+
+# ========== Sentinel 限流 ==========
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+  httpclient:
+    enabled: true
+
+# ========== 日志级别 ==========
+logging:
+  level:
+    com.gym.food.mapper: DEBUG
+    com.gym.food.service: DEBUG
+
+# ========== JWT（JwtUtil 使用） ==========
+jwt:
+  secret: "GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  expire: 7200

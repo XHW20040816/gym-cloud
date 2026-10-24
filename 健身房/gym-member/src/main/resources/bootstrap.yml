@@ -1,0 +1,21 @@
+# 仅保留服务名 / profile / Nacos 地址；端口、数据源、Redis 等业务配置统一由
+# Nacos 的 gym-member-dev.yml + application.yml 提供（唯一口径）
+spring:
+  application:
+    name: gym-member
+  profiles:
+    active: dev
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848
+      discovery:
+        server-addr: 127.0.0.1:8848
+        enabled: true
+      config:
+        server-addr: 127.0.0.1:8848
+        enabled: true
+        file-extension: yml
+        shared-configs:
+          - data-id: application.yml
+            group: DEFAULT_GROUP
+            refresh: true

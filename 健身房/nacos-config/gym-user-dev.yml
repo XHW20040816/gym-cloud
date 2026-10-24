@@ -1,0 +1,97 @@
+# ============================================================
+# Nacos 配置：gym-user 服务（DEFAULT_GROUP / dataId=gym-user-dev.yml）
+# 功能：用户管理 / 教练管理 / 会员管理 / 课程预约聚合入口
+# ============================================================
+server:
+  port: 8081
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  application:
+    name: gym-user
+  profiles:
+    active: dev
+
+# ========== MyBatis Plus 配置 ==========
+  cloud:
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858
+        port: 8719
+# ========== Feign 配置 ==========
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/gym_user?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&tinyInt1isBit=false
+    username: root
+    password: root
+    druid:
+      initial-size: 5
+      min-idle: 5
+      max-active: 30
+      max-wait: 60000
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      validation-query: SELECT 1
+      test-while-idle: true
+      test-on-borrow: false
+      test-on-return: false
+      filters: stat,wall,slf4j
+      connection-properties: druid.stat.mergeSql=true;druid.stat.slowSqlMillis=5000
+
+# ========== Seata 事务分组 ==========
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gym.entity.user,com.gym.entity.course,com.gym.entity.member
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# Seata 事务分组统一由公共配置 application.yml 提供（default_tx_group -> default）
+
+# ========== 服务特有配置 ==========
+gym:
+  user:
+    default-password: 123456
+    default-avatar: https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=gym%20user%20avatar&image_size=square
+    password-salt: "GymUserPasswordSalt2024"
+  # 课程预约容量控制
+  course:
+    enroll:
+      lock-wait-time: 3000
+      max-capacity-default: 20
+      redis-lock-prefix: "gym:course:enroll:lock:"
+
+# ========== Sentinel 限流 ==========
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+        logger-level: basic
+  httpclient:
+    enabled: true
+  okhttp:
+    enabled: false
+
+# ========== 日志级别 ==========
+logging:
+  level:
+    com.gym.user.mapper: DEBUG
+    com.gym.user.service: DEBUG
+
+# ========== JWT（JwtUtil 使用） ==========
+jwt:
+  secret: "GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  expire: 7200

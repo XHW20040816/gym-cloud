@@ -1,0 +1,111 @@
+# ============================================================
+# Nacos 配置：gym-search 服务（DEFAULT_GROUP / dataId=gym-search-dev.yml）
+# 功能：ES 商品索引 / 中文分词搜索 / 高亮 / Completion 自动补全
+# ============================================================
+server:
+  port: 8092
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+  application:
+    name: gym-search
+  profiles:
+    active: dev
+
+# ========== MyBatis Plus 配置（读 MySQL 商品表全量同步） ==========
+  cloud:
+    sentinel:
+      transport:
+        dashboard: 127.0.0.1:8858
+        port: 8729
+  # ========== Elasticsearch 连接 ==========
+  elasticsearch:
+    uris: http://127.0.0.1:9200
+    connection-timeout: 10s
+    read-timeout: 30s
+  data:
+    elasticsearch:
+      repositories:
+        enabled: true
+      client:
+        reactive:
+          socket-timeout: 30s
+          connect-timeout: 10s
+# ========== Feign 配置 ==========
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/gym_goods?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    druid:
+      initial-size: 3
+      min-idle: 3
+      max-active: 20
+      max-wait: 60000
+      validation-query: SELECT 1
+
+# ========== Elasticsearch 配置 ==========
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.gym.entity.goods
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+# ========== 搜索服务特有配置 ==========
+gym:
+  search:
+    # ES 索引名
+    index:
+      goods: goods_index
+    # IK 分词器配置
+    analyzer:
+      search: ik_smart
+      index: ik_max_word
+    # 分页默认配置
+    page:
+      default-size: 10
+      max-size: 100
+    # 高亮配置
+    highlight:
+      pre-tags: "<em>"
+      post-tags: "</em>"
+      fragment-size: 200
+      number-of-fragments: 3
+    # Completion 自动补全
+    suggest:
+      size: 10
+    # RabbitMQ 商品同步监听队列
+    mq:
+      goods-sync-exchange: goods.exchange.fanout
+      goods-sync-queue: goods.queue.search.sync
+    # 启动时全量同步开关
+    full-sync:
+      enabled: true
+      batch-size: 500
+
+# ========== Sentinel 限流 ==========
+feign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 20000
+  httpclient:
+    enabled: true
+
+# ========== 日志级别 ==========
+logging:
+  level:
+    com.gym.search: DEBUG
+    org.springframework.data.elasticsearch: INFO
+
+# ========== JWT（JwtUtil 使用） ==========
+jwt:
+  secret: "GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  expire: 7200

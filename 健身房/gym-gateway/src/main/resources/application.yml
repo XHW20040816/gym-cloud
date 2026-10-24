@@ -1,0 +1,29 @@
+spring:
+  main:
+    web-application-type: reactive
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      password:
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 20
+          max-idle: 10
+          min-idle: 5
+          max-wait: -1ms
+
+logging:
+  level:
+    com.gym: debug
+
+knife4j:
+  gateway:
+    enabled: true
+    strategy: discover
+
+gym:
+  jwt:
+    # secret 从 Nacos 配置中心读取，本地不存储明文密钥

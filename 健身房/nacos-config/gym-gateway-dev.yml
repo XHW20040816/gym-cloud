@@ -1,0 +1,179 @@
+# ============================================================
+# Nacos 配置：gym-gateway 网关（DEFAULT_GROUP / dataId=gym-gateway-dev.yml）
+# 功能：路由转发 / JWT 全局认证 / Sentinel 限流 / CORS 跨域
+# ============================================================
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gym-gateway
+  profiles:
+    active: dev
+  main:
+    web-application-type: reactive
+    allow-bean-definition-overriding: true
+
+  cloud:
+    # ========== Gateway 路由配置（12 个服务的路由转发） ==========
+    gateway:
+      httpclient:
+        connect-timeout: 5000
+        response-timeout: 30s
+      forwarded:
+        enabled: true
+      # 全局 CORS：allow-credentials=true 时浏览器不接受 "*"，这里收敛为前端开发地址。
+      # 新增前端域名/端口时，在 allowed-origin-patterns 里追加对应 pattern。
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowed-origin-patterns:
+              - "http://localhost:5173"
+              - "http://127.0.0.1:5173"
+              - "http://localhost:5174"
+              - "http://127.0.0.1:5174"
+            allowed-methods: "*"
+            allowed-headers: "*"
+            exposed-headers: "Authorization,Content-Type"
+            allow-credentials: true
+            max-age: 3600
+      routes:
+        # 1. 认证服务
+        - id: gym-auth
+          uri: lb://gym-auth
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+
+        # 2. 用户服务（仅用户域，教练/会员/课程已拆分到独立服务）
+        - id: gym-user
+          uri: lb://gym-user
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=1
+
+        # 3. 商品服务
+        - id: gym-goods
+          uri: lb://gym-goods
+          predicates:
+            - Path=/api/goods/**
+          filters:
+            - StripPrefix=1
+
+        # 4. 餐饮服务
+        - id: gym-food
+          uri: lb://gym-food
+          predicates:
+            - Path=/api/food/**
+          filters:
+            - StripPrefix=1
+
+        # 5. 会员服务
+        - id: gym-member
+          uri: lb://gym-member
+          predicates:
+            - Path=/api/member/**
+          filters:
+            - StripPrefix=1
+
+        # 6. 教练服务
+        - id: gym-coach
+          uri: lb://gym-coach
+          predicates:
+            - Path=/api/coach/**
+          filters:
+            - StripPrefix=1
+
+        # 7. 课程服务
+        - id: gym-course
+          uri: lb://gym-course
+          predicates:
+            - Path=/api/course/**
+          filters:
+            - StripPrefix=1
+
+        # 8. 订单服务
+        - id: gym-order
+          uri: lb://gym-order
+          predicates:
+            - Path=/api/order/**
+          filters:
+            - StripPrefix=1
+
+        # 9. 支付服务
+        - id: gym-payment
+          uri: lb://gym-payment
+          predicates:
+            - Path=/api/payment/**
+          filters:
+            - StripPrefix=1
+
+        # 10. 秒杀服务
+        - id: gym-seckill
+          uri: lb://gym-seckill
+          predicates:
+            - Path=/api/seckill/**
+          filters:
+            - StripPrefix=1
+
+        # 11. 搜索服务
+        - id: gym-search
+          uri: lb://gym-search
+          predicates:
+            - Path=/api/search/**
+          filters:
+            - StripPrefix=1
+
+    # ========== Sentinel 网关限流配置 ==========
+    sentinel:
+      enabled: true
+      eager: true
+      transport:
+        dashboard: 127.0.0.1:8858
+        port: 8719
+      datasource:
+        gateway-flow:
+          nacos:
+            server-addr: 127.0.0.1:8848
+            dataId: sentinel-gateway-flow-rules.json
+            groupId: DEFAULT_GROUP
+            data-type: json
+            rule-type: gw-flow
+
+    # ========== Nacos 服务发现（配置中心地址在 bootstrap.yml） ==========
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+        namespace: ""
+        group: DEFAULT_GROUP
+        username: nacos
+        password: nacos
+        heart-beat-interval: 5000
+
+# ========== 网关 JWT 认证白名单（AuthConfig 前缀 gym.auth） ==========
+gym:
+  jwt:
+    secret: "GymAuthJwtSecretKeySuperSecure2024xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  auth:
+    white-list:
+      - /api/auth/login
+      - /api/auth/refresh
+      - /api/auth/logout
+      - /api/auth/captcha
+      - /api/seckill/public/**
+      - /v3/api-docs/**
+      - /swagger-resources/**
+      - /swagger-ui/**
+      - /swagger-ui.html
+      - /doc.html
+      - /webjars/**
+      - /*/v3/api-docs
+      - /favicon.ico
+
+# ========== 日志级别 ==========
+logging:
+  level:
+    com.gym.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO
