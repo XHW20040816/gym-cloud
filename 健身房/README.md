@@ -296,7 +296,21 @@ Content-Type: application/json
 - 刷新：`POST /api/auth/refresh`（Header `refresh_token` 或 `Authorization`）。
 - 注销：`POST /api/auth/logout`（删除 Redis 中 access / refresh 两个 key）。
 
-### 8.2 用户信息
+### 8.2 注册
+
+```http
+POST /api/auth/register
+Content-Type: application/json
+
+{ "username": "newuser", "password": "123456", "role": "USER" }
+```
+
+- `role`：`USER`（普通用户）/ `COACH`（教练）/ `ADMIN`（管理员），默认 `USER`。
+- `USER` / `COACH` 可公开注册；`ADMIN` 需额外携带 `inviteCode`，默认值 `GymAdmin2024`（Nacos `gym.register.admin-invite-code` 可改）。
+- 用户名唯一（`uk_username`）；`phone`、`email` 也各自有唯一键，填写时不可与已有用户重复。
+- 注册成功后账号默认余额 0、积分 0、状态正常。
+
+### 8.3 用户信息
 
 ```http
 GET /api/user/info
@@ -305,7 +319,7 @@ Authorization: Bearer {access_token}
 
 返回 `data.balance`（user1 初始 5000.00）等字段。
 
-### 8.3 创建订单
+### 8.4 创建订单
 
 ```http
 POST /api/order/create
@@ -316,14 +330,15 @@ POST /api/order/create
 
 查询订单：`GET /api/order/{orderNo}` → `data.payAmount`（本例 299 × 20 = 5980.00）。
 
-### 8.4 余额支付
+### 8.5 余额支付
 
 ```http
 POST /api/payment/pay
 { "orderNo": "371833483829579776", "payType": 1, "amount": 5980.00 }
 ```
 
-- `payType`：1 余额、2 支付宝、3 微信；**金额必须等于订单** **`payAmount`**，否则返回「支付金额不符」。
+- `payType`：目前仅支持 **1（余额支付）**；支付宝（2）/ 微信（3）策略类已预留但未接入真实第三方，调用会返回「支付宝/微信支付暂未接入，请使用余额支付」。
+- **金额必须等于订单** **`payAmount`**，否则返回「支付金额不符」。
 - 余额支付走 `BalancePayTxService`（独立 Bean，`@GlobalTransactional(name="balance-pay-tx")`）：
   1. Feign 调 gym-user 扣余额（`UPDATE t_user SET balance = balance - ? WHERE id = ? AND balance >= ?`）
   2. 本地写入 `gym_payment.t_payment`
@@ -332,7 +347,7 @@ POST /api/payment/pay
 - 订单状态只有 `0 UNPAID / 1 PAID / 2 SHIPPED / 3 COMPLETED / 4 CANCELLED / 5 REFUNDED`，**没有 PAYING 中间态**。
 - 回滚验证专用接口：`POST /api/payment/test/rollback`（传入大于余额的金额即可触发）。
 
-### 8.5 秒杀
+### 8.6 秒杀
 
 ```http
 GET  /api/seckill/public/activities
@@ -345,14 +360,14 @@ GET  /api/seckill/order/my
 - `POST /seckill/order` 返回 `data` 为 **秒杀商品 ID**（不是订单号），异步建单后通过 `GET /seckill/order/result/{seckillGoodsId}` 轮询 `data.order`。
 - 重复下单返回「已达限购数量」。
 
-### 8.6 搜索
+### 8.7 搜索
 
 ```http
 GET /api/search/goods?keyword=蛋白&page=1&size=10
 GET /api/search/suggest?prefix=蛋&size=5
 ```
 
-### 8.7 其他常用接口
+### 8.8 其他常用接口
 
 - 商品：`GET/POST/PUT/DELETE /goods/**`、`/goods/category/**`
 - 课程：`GET /course/page`、`GET /course/{id}`、`POST /course/schedule/enroll`
@@ -377,7 +392,6 @@ GET /api/search/suggest?prefix=蛋&size=5
 | `seckill:lock:{userId}:{seckillGoodsId}`       | String | Redisson 防重锁             |
 | `course:enroll:{scheduleId}:{userId}`          | String | 课程预约瞬时防重（3s，请求结束即删除）       |
 | `pay:lock:{orderNo}`                           | String | 支付防重锁                    |
-| `alipay:pay:{orderNo}` / `wxpay:pay:{orderNo}` | String | Mock 预支付链接               |
 
 ### 9.2 RabbitMQ
 
@@ -415,7 +429,7 @@ TTL **只由队列级 `x-message-ttl` 提供（1800000ms / 30 分钟，单一来
 | AC-7 课程容量         | 容量 20、已报 19 的排期并发报名                                                                    | 仅 1 人成功，`enrollment_count=20`，无重复报名                                                                                                                     |
 | AC-8 搜索高亮         | 商品同步后 `GET /api/search/goods?keyword=蛋白`                                               | 命中并带 `<em>` 高亮                                                                                                                                          |
 | AC-9 自动补全         | `GET /api/search/suggest?prefix=蛋`                                                     | 返回 ≥3 条补全                                                                                                                                               |
-| AC-10 支付策略        | BALANCE / ALIPAY / WECHAT 三种 payType                                                   | 日志打印对应策略，`t_payment.pay_type` 正确                                                                                                                        |
+| AC-10 支付策略        | 余额支付（payType=1）                                                                    | 余额支付成功，`t_payment.pay_type=1`，订单状态 PAID；支付宝/微信返回「暂未接入」                                                                                                 |
 | AC-11 前端          | `npm run dev` 后 admin/123456 登录并操作 6 个页面                                               | 页面与 CRUD 正常，角色菜单隔离                                                                                                                                      |
 
 ***
